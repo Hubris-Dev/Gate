@@ -26,11 +26,16 @@ app.post('/api/get-code', async (req, res) => {
     try {
         const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
-        const sock = makeWASocket({
+                const sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
-            logger: pino({ level: "silent" }), // Désactive les logs abusifs de Baileys
-            browser: Browsers.macOS('Chrome'), // Obligatoire pour que le pairing code fonctionne
+            logger: pino({ level: "silent" }),
+            // On utilise une empreinte Linux ultra-classique qui n'est pas bloquée
+            browser: ['Ubuntu', 'Chrome', '20.0.04'], 
+            // On désactive le chargement des vieux messages pour ne pas faire planter Railway
+            syncFullHistory: false, 
+            // On ne s'affiche pas "En ligne" pendant la génération, ça réduit les blocages
+            markOnlineOnConnect: false 
         });
 
         // Enregistrer la session dans notre mémoire temporaire
