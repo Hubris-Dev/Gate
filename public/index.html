@@ -1,98 +1,418 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gilgamesh - WhatsApp Pairing</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111b21; color: #e9edef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .container { background-color: #202c33; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 400px; }
-        h1 { color: #00a884; margin-bottom: 10px; }
-        p { color: #8696a0; margin-bottom: 30px; font-size: 14px; }
-        input { width: 90%; padding: 12px; margin-bottom: 20px; border: none; border-radius: 5px; background: #2a3942; color: white; font-size: 16px; outline: none; }
-        input:focus { border: 1px solid #00a884; }
-        button { background-color: #00a884; color: #111b21; border: none; padding: 12px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; transition: 0.2s; }
-        button:hover { background-color: #008f6f; }
-        #code-display { margin-top: 30px; display: none; }
-        .code-box { font-size: 32px; letter-spacing: 5px; font-weight: bold; color: white; background: #111b21; padding: 15px; border-radius: 8px; margin: 15px 0; }
-        .loader { font-size: 14px; color: #00a884; animation: blink 1.5s infinite; }
-        @keyframes blink { 0% {opacity: .2;} 50% {opacity: 1;} 100% {opacity: .2;} }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GATE — Infernum Entreprise</title>
+<meta name="description" content="GATE — connecte ton numéro WhatsApp à l'infrastructure d'Infernum Entreprise.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --abyss:#0c0a08;
+    --marble:#e9e4d8;
+    --ash:#948a7d;
+    --gold:#c9a24a;
+    --blood:#8c1f2b;
+    --ember:#e2622f;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+
+  body{
+    background:var(--abyss);
+    color:var(--marble);
+    font-family:'Manrope', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+
+  .scene{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100vh;
+    padding:32px 20px;
+    text-align:center;
+  }
+
+  .glow{
+    position:absolute;
+    top:18%;
+    left:50%;
+    width:520px;
+    height:520px;
+    transform:translateX(-50%);
+    background:radial-gradient(circle, rgba(201,162,74,0.16) 0%, rgba(201,162,74,0) 70%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .embers{ position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+  .embers span{
+    position:absolute;
+    bottom:-10px;
+    width:3px; height:3px;
+    border-radius:50%;
+    background:var(--gold);
+    opacity:0;
+    animation:rise linear infinite;
+  }
+  .embers span:nth-child(1){ left:6%;  animation-delay:0s;   animation-duration:11s; }
+  .embers span:nth-child(2){ left:16%; animation-delay:2s;   animation-duration:9s;  }
+  .embers span:nth-child(3){ left:28%; animation-delay:4.5s; animation-duration:13s; }
+  .embers span:nth-child(4){ left:41%; animation-delay:1s;   animation-duration:10s; }
+  .embers span:nth-child(5){ left:57%; animation-delay:3.5s; animation-duration:12s; }
+  .embers span:nth-child(6){ left:69%; animation-delay:0.5s; animation-duration:9.5s;}
+  .embers span:nth-child(7){ left:82%; animation-delay:2.8s; animation-duration:11.5s;}
+  .embers span:nth-child(8){ left:92%; animation-delay:5s;   animation-duration:10.5s;}
+
+  @keyframes rise{
+    0%{ transform:translateY(0) scale(1); opacity:0; }
+    12%{ opacity:0.55; }
+    88%{ opacity:0.2; }
+    100%{ transform:translateY(-100vh) scale(0.3); opacity:0; }
+  }
+
+  .eyebrow{
+    position:relative;
+    z-index:1;
+    font-size:11px;
+    letter-spacing:0.32em;
+    color:var(--ash);
+    text-transform:uppercase;
+    font-weight:600;
+  }
+
+  main.content{
+    position:relative;
+    z-index:1;
+    margin:auto 0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    max-width:420px;
+    width:100%;
+  }
+
+  .seal{ width:132px; height:132px; margin:36px 0 28px; }
+  .seal-svg{ width:100%; height:100%; }
+
+  .seal-svg .arch{
+    fill:none;
+    stroke:var(--marble);
+    stroke-width:2.6;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    transition:stroke 0.7s ease, filter 0.7s ease;
+  }
+
+  .seal-svg .crack{
+    fill:none;
+    stroke:var(--blood);
+    stroke-width:2;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    opacity:0;
+    transition:opacity 0.7s ease, stroke 0.7s ease, filter 0.7s ease;
+  }
+
+  [data-state="loading"] .seal{ animation:breathe 1.5s ease-in-out infinite; }
+  [data-state="loading"] .arch{ stroke:var(--gold); }
+
+  [data-state="pending"] .arch{ stroke:var(--gold); filter:drop-shadow(0 0 6px rgba(201,162,74,0.55)); }
+  [data-state="pending"] .crack{ opacity:0.8; stroke:var(--gold); animation:crackPulse 2.4s ease-in-out infinite; }
+
+  [data-state="connected"] .arch{ stroke:var(--gold); filter:drop-shadow(0 0 11px rgba(201,162,74,0.85)); }
+  [data-state="connected"] .crack{ opacity:1; stroke:var(--ember); filter:drop-shadow(0 0 9px rgba(226,98,47,0.8)); animation:none; }
+
+  [data-state="error"] .arch, [data-state="error"] .crack{
+    stroke:var(--blood); opacity:1; animation:flash 0.35s ease-in-out 2;
+  }
+
+  @keyframes breathe{ 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
+  @keyframes crackPulse{ 0%,100%{ opacity:0.55; } 50%{ opacity:1; } }
+  @keyframes flash{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
+
+  h1.wordmark{
+    font-family:'Cinzel', serif;
+    font-weight:700;
+    font-size:clamp(2.6rem, 9vw, 4rem);
+    letter-spacing:0.14em;
+    color:var(--marble);
+  }
+
+  .subhead{
+    margin-top:14px;
+    color:var(--ash);
+    font-size:15px;
+    line-height:1.5;
+    max-width:320px;
+  }
+
+  .pair-form{
+    margin-top:32px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    width:100%;
+  }
+
+  .pair-form input{
+    background:transparent;
+    border:1px solid rgba(233,228,216,0.22);
+    border-radius:2px;
+    padding:14px 16px;
+    color:var(--marble);
+    font-family:'Space Mono', monospace;
+    font-size:15px;
+    text-align:center;
+    letter-spacing:0.04em;
+    width:100%;
+  }
+
+  .pair-form input::placeholder{ color:rgba(233,228,216,0.35); }
+  .pair-form input:focus-visible{ outline:none; border-color:var(--gold); }
+
+  .pair-form button{
+    background:transparent;
+    border:1px solid var(--gold);
+    color:var(--gold);
+    font-family:'Manrope', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    padding:15px 16px;
+    border-radius:2px;
+    cursor:pointer;
+    transition:background 0.3s ease, color 0.3s ease;
+  }
+
+  .pair-form button:hover:not(:disabled),
+  .pair-form button:focus-visible{
+    background:var(--gold);
+    color:var(--abyss);
+    outline:none;
+  }
+
+  .pair-form button:disabled{ opacity:0.55; cursor:default; }
+
+  .code-zone{ margin-top:36px; width:100%; }
+
+  .code-label{
+    display:block;
+    font-size:11px;
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--ash);
+    margin-bottom:10px;
+  }
+
+  .code-display{
+    font-family:'Space Mono', monospace;
+    font-weight:700;
+    font-size:clamp(1.6rem, 6vw, 2.2rem);
+    letter-spacing:0.12em;
+    color:var(--gold);
+    text-shadow:0 0 18px rgba(201,162,74,0.4);
+  }
+
+  .instructions{ margin-top:16px; font-size:13px; color:var(--ash); line-height:1.6; }
+
+  .status{
+    margin-top:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:9px;
+    font-size:13px;
+    color:var(--ash);
+  }
+
+  .status-dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    background:var(--gold);
+    animation:dotPulse 1.5s ease-in-out infinite;
+  }
+
+  [data-state="connected"] .status-dot{ background:var(--ember); animation:none; }
+
+  @keyframes dotPulse{
+    0%,100%{ opacity:1; box-shadow:0 0 0 0 rgba(201,162,74,0.45); }
+    50%{ opacity:0.45; box-shadow:0 0 0 6px rgba(201,162,74,0); }
+  }
+
+  .error-line{ margin-top:18px; color:var(--blood); font-size:13px; }
+
+  footer.signature{
+    position:relative;
+    z-index:1;
+    font-size:10px;
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--ash);
+    opacity:0.7;
+    padding-top:24px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .embers span, .seal, .arch, .crack, .status-dot{
+      animation:none !important;
+      transition:none !important;
+    }
+  }
+</style>
 </head>
 <body>
+<div class="scene" data-state="idle" id="scene">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="embers" aria-hidden="true">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
 
-<div class="container">
-    <h1>Gilgamesh Pairing</h1>
-    <p>Génère ton fichier session (creds.json) en utilisant un Pairing Code WhatsApp.</p>
+  <header class="eyebrow">Infernum Entreprise</header>
 
-    <div id="input-section">
-        <input type="text" id="phone" placeholder="Ex: 509XXXXXXXX" />
-        <button onclick="getCode()" id="btn-submit">Obtenir le code</button>
+  <main class="content">
+    <div class="seal">
+      <svg class="seal-svg" viewBox="0 0 100 100" aria-hidden="true">
+        <path class="arch" d="M28,78 L28,42 A22,22 0 0 1 72,42 L72,78" />
+        <path class="crack" d="M50,24 L45,34 L54,44 L44,54 L53,64 L47,74 L50,80" />
+      </svg>
     </div>
 
-    <div id="code-display">
-        <p>Entre ce code dans "Appareils Connectés" sur WhatsApp :</p>
-        <div class="code-box" id="pairing-code">...</div>
-        <div class="loader">En attente de confirmation sur ton téléphone...</div>
+    <h1 class="wordmark">GATE</h1>
+    <p class="subhead">Relie ton numéro WhatsApp à l'infrastructure d'Infernum.</p>
+
+    <form class="pair-form" id="pairForm">
+      <input type="tel" id="numberInput" placeholder="+33 6 12 34 56 78" autocomplete="tel" required>
+      <button type="submit" id="submitBtn">Ouvrir le Gate</button>
+    </form>
+
+    <div class="code-zone" id="codeZone" hidden>
+      <span class="code-label">Ton code</span>
+      <div class="code-display" id="codeDisplay">— — — —</div>
+      <p class="instructions">WhatsApp → Appareils liés → Lier un appareil → entre ce code</p>
+      <div class="status">
+        <span class="status-dot"></span>
+        <span class="status-text" id="statusText">En attente de confirmation…</span>
+      </div>
     </div>
+
+    <p class="error-line" id="errorLine" hidden></p>
+  </main>
+
+  <footer class="signature">Infernum Entreprise — créé par HUBRIS</footer>
 </div>
 
+<noscript>Active JavaScript pour utiliser le Gate.</noscript>
+
 <script>
-    async function getCode() {
-        const phone = document.getElementById('phone').value;
-        const btn = document.getElementById('btn-submit');
-        
-        if (!phone) return alert("Veuillez entrer un numéro !");
-        
-        btn.innerText = "Génération...";
-        btn.disabled = true;
+  // ⚠️ À vérifier / adapter selon les vraies routes du backend :
+  const PAIR_ENDPOINT = '/api/pair';
+  const STATUS_ENDPOINT = '/api/status';
 
-        try {
-            const res = await fetch('/api/get-code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone })
-            });
-            const data = await res.json();
+  const scene = document.getElementById('scene');
+  const form = document.getElementById('pairForm');
+  const numberInput = document.getElementById('numberInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const codeZone = document.getElementById('codeZone');
+  const codeDisplay = document.getElementById('codeDisplay');
+  const statusText = document.getElementById('statusText');
+  const errorLine = document.getElementById('errorLine');
 
-            if (data.error) throw new Error(data.error);
+  let pollTimer = null;
+  let timeoutTimer = null;
+  let currentNumber = '';
 
-            document.getElementById('input-section').style.display = 'none';
-            document.getElementById('code-display').style.display = 'block';
-            document.getElementById('pairing-code').innerText = data.code;
+  function setState(s){ scene.dataset.state = s; }
 
-            // Commencer à vérifier si l'utilisateur a validé sur son téléphone
-            checkStatus(data.sessionId);
-            
-        } catch (err) {
-            alert(err.message);
-            btn.innerText = "Obtenir le code";
-            btn.disabled = false;
+  function showError(msg){
+    errorLine.textContent = msg;
+    errorLine.hidden = false;
+    setState('error');
+  }
+
+  function hideError(){ errorLine.hidden = true; }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+
+    const number = numberInput.value.replace(/[^\d]/g, '');
+    if (number.length < 8){
+      showError("Numéro invalide — inclus l'indicatif pays.");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Ouverture…';
+    setState('loading');
+
+    try{
+      const res = await fetch(PAIR_ENDPOINT, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ number })
+      });
+      if(!res.ok) throw new Error('bad status');
+
+      const data = await res.json();
+      const code = data.code || data.pairingCode || data.pairing_code;
+      if(!code) throw new Error('no code in response');
+
+      currentNumber = number;
+      codeDisplay.textContent = code;
+      codeZone.hidden = false;
+      statusText.textContent = 'En attente de confirmation…';
+      setState('pending');
+      startPolling();
+      startPendingTimeout();
+    }catch(err){
+      showError('Impossible de générer le code. Réessaie.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Ouvrir le Gate';
+    }
+  });
+
+  function startPolling(){
+    clearInterval(pollTimer);
+    let failCount = 0;
+    pollTimer = setInterval(async () => {
+      try{
+        const res = await fetch(`${STATUS_ENDPOINT}?number=${encodeURIComponent(currentNumber)}`);
+        if(!res.ok) throw new Error('status not ok');
+        const data = await res.json();
+        failCount = 0;
+        if(data.connected){
+          clearInterval(pollTimer);
+          clearTimeout(timeoutTimer);
+          setState('connected');
+          statusText.textContent = 'Connecté.';
         }
-    }
+      }catch(err){
+        failCount++;
+        if(failCount >= 5){
+          clearInterval(pollTimer);
+          showError('Connexion au serveur perdue. Recharge la page.');
+        }
+      }
+    }, 3000);
+  }
 
-    function checkStatus(sessionId) {
-        // On interroge le serveur toutes les 3 secondes
-        const interval = setInterval(async () => {
-            const res = await fetch(`/api/status/${sessionId}`);
-            const data = await res.json();
-
-            if (data.status === 'ready') {
-                clearInterval(interval);
-                document.querySelector('.loader').innerText = "Succès ! Téléchargement de la session...";
-                document.querySelector('.loader').style.color = "#00a884";
-                
-                // Lancer le téléchargement du fichier zip
-                window.location.href = `/api/download/${sessionId}`;
-                
-                setTimeout(() => {
-                    alert("Fichier téléchargé ! Tu peux l'extraire et mettre les fichiers dans le dossier session de ton Bot.");
-                    window.location.reload();
-                }, 3000);
-            }
-        }, 3000);
-    }
+  function startPendingTimeout(){
+    clearTimeout(timeoutTimer);
+    timeoutTimer = setTimeout(() => {
+      if(scene.dataset.state === 'pending'){
+        statusText.textContent = 'Toujours en attente… le code a peut-être expiré, relance si besoin.';
+      }
+    }, 90000);
+  }
 </script>
-
 </body>
 </html>
