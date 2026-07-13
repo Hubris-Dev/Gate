@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gilgamesh - WhatsApp Pairing</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111b21; color: #e9edef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background-color: #202c33; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 400px; }
+        h1 { color: #00a884; margin-bottom: 10px; }
+        p { color: #8696a0; margin-bottom: 30px; font-size: 14px; }
+        input { width: 90%; padding: 12px; margin-bottom: 20px; border: none; border-radius: 5px; background: #2a3942; color: white; font-size: 16px; outline: none; }
+        input:focus { border: 1px solid #00a884; }
+        button { background-color: #00a884; color: #111b21; border: none; padding: 12px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; transition: 0.2s; }
+        button:hover { background-color: #008f6f; }
+        #code-display { margin-top: 30px; display: none; }
+        .code-box { font-size: 32px; letter-spacing: 5px; font-weight: bold; color: white; background: #111b21; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .loader { font-size: 14px; color: #00a884; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% {opacity: .2;} 50% {opacity: 1;} 100% {opacity: .2;} }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gilgamesh Pairing</h1>
+    <p>Génère ton fichier session (creds.json) en utilisant un Pairing Code WhatsApp.</p>
+
+    <div id="input-section">
+        <input type="text" id="phone" placeholder="Ex: 509XXXXXXXX" />
+        <button onclick="getCode()" id="btn-submit">Obtenir le code</button>
+    </div>
+
+    <div id="code-display">
+        <p>Entre ce code dans "Appareils Connectés" sur WhatsApp :</p>
+        <div class="code-box" id="pairing-code">...</div>
+        <div class="loader">En attente de confirmation sur ton téléphone...</div>
+    </div>
+</div>
+
+<script>
+    async function getCode() {
+        const phone = document.getElementById('phone').value;
+        const btn = document.getElementById('btn-submit');
+        
+        if (!phone) return alert("Veuillez entrer un numéro !");
+        
+        btn.innerText = "Génération...";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('/api/get-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone })
+            });
+            const data = await res.json();
+
+            if (data.error) throw new Error(data.error);
+
+            document.getElementById('input-section').style.display = 'none';
+            document.getElementById('code-display').style.display = 'block';
+            document.getElementById('pairing-code').innerText = data.code;
+
+            // Commencer à vérifier si l'utilisateur a validé sur son téléphone
+            checkStatus(data.sessionId);
+            
+        } catch (err) {
+            alert(err.message);
+            btn.innerText = "Obtenir le code";
+            btn.disabled = false;
+        }
+    }
+
+    function checkStatus(sessionId) {
+        // On interroge le serveur toutes les 3 secondes
+        const interval = setInterval(async () => {
+            const res = await fetch(`/api/status/${sessionId}`);
+            const data = await res.json();
+
+            if (data.status === 'ready') {
+                clearInterval(interval);
+                document.querySelector('.loader').innerText = "Succès ! Téléchargement de la session...";
+                document.querySelector('.loader').style.color = "#00a884";
+                
+                // Lancer le téléchargement du fichier zip
+                window.location.href = `/api/download/${sessionId}`;
+                
+                setTimeout(() => {
+                    alert("Fichier téléchargé ! Tu peux l'extraire et mettre les fichiers dans le dossier session de ton Bot.");
+                    window.location.reload();
+                }, 3000);
+            }
+        }, 3000);
+    }
+</script>
+
+</body>
+</html>
