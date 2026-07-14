@@ -27,37 +27,27 @@ app.post('/api/pair', async (req, res) => {
 
   // Ferme une éventuelle session déjà ouverte pour ce numéro avant d'en relancer une
   const previous = activeSessions.get(number);
-  if (previous?.sock) {
-    try { previous.sock.end(); } catch (_) {}
-    activeSessions.delete(number);
-  }
+  // 1. Importe "Browsers" tout en haut de ton server.js s'il n'y est pas :
+import { default as makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Browsers } from '@whiskeysockets/baileys';
 
-  try {
-    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${number}`);
-
-    if (state.creds.registered) {
-      return res.status(409).json({
-        error: `Ce numéro est déjà pairé. Supprime ./sessions/${number} pour relancer un pairing.`
-      });
-    }
-
-    const { version } = await fetchLatestBaileysVersion(); // évite les déconnexions 405 liées à une version WA obsolète
-
-    const sock = makeWASocket({
-      version,
-      auth: {
+// 2. Modifie l'initialisation de ton socket dans la route '/api/pair' :
+const sock = makeWASocket({
+    auth: {
         creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
-      },
-      logger: pino({ level: 'silent' }),
-      msgRetryCounterCache,
-      browser: Browsers.macOS('Google Chrome'), // requis pour le pairing code, sinon l'appairage échoue
-    });
-
-    const session = { sock, status: 'pending', reason: null };
-    activeSessions.set(number, session);
-    sock.ev.on('creds.update', saveCreds);
-
+        keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
+    },
+    logger: pino({ level: "silent" }),
+    msgRetryCounterCache,
+    
+    // 🔥 FORCE WhatsApp à croire que c'est un vrai navigateur Chrome sur Windows
+    browser: Browsers.appropriate('Chrome'), 
+    
+    // Paramètres réseau pour éviter les déconnexions brutales
+    connectTimeoutMs: 60000, // Laisse 60 secondes pour établir la connexion
+    defaultQueryTimeoutMs: 0,
+    keepAliveIntervalMs: 30000,
+});
+  
     let codeRequested = false;
     let settled = false;
 
