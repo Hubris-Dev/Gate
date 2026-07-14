@@ -2,6 +2,7 @@ import express from 'express';
 import makeWASocket, {
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
+  fetchLatestBaileysVersion,
   DisconnectReason,
   Browsers
 } from '@whiskeysockets/baileys';
@@ -36,11 +37,16 @@ app.post('/api/pair', async (req, res) => {
   }
 
   try {
-    // 1. Initialise le stockage de session local
+    // 1. Récupère dynamiquement la TOUTE DERNIÈRE version de WhatsApp Web
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`[GATE] Utilisation de la version WhatsApp v${version.join('.')}`);
+
+    // 2. Initialise le stockage de session local
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${number}`);
 
-    // 2. Initialise le socket avec le contournement d'empreinte Chrome
+    // 3. Initialise le socket avec la version récupérée et le contournement Chrome
     const sock = makeWASocket({
+      version, // <-- On injecte la version dynamique ici !
       auth: {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
