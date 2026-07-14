@@ -2,7 +2,6 @@ import express from 'express';
 import makeWASocket, {
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
-  fetchLatestBaileysVersion,
   DisconnectReason,
   Browsers
 } from '@whiskeysockets/baileys';
@@ -12,12 +11,12 @@ import NodeCache from 'node-cache';
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); // Place ton fichier HTML dans un dossier "public"
+app.use(express.static('public')); // Distribue ton dossier public (index.html)
 
 const msgRetryCounterCache = new NodeCache();
-const activeSessions = new Map(); // number -> { sock, status, reason }
+const activeSessions = new Map(); // structure : number -> { sock, status, reason }
 
-// Route pour générer le code
+// Route pour générer le code de jumelage
 app.post('/api/pair', async (req, res) => {
   const { number } = req.body || {};
 
@@ -25,48 +24,65 @@ app.post('/api/pair', async (req, res) => {
     return res.status(400).json({ error: 'Numéro invalide' });
   }
 
-  // Ferme une éventuelle session déjà ouverte pour ce numéro avant d'en relancer une
+  // Ferme une éventuelle session active précédente pour ce numéro
   const previous = activeSessions.get(number);
-  // 1. Importe "Browsers" tout en haut de ton server.js s'il n'y est pas :
-import { default as makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Browsers } from '@whiskeysockets/baileys';
+  if (previous && previous.sock) {
+    try {
+      previous.sock.end(undefined);
+    } catch (e) {
+      // ignore
+    }
+    activeSessions.delete(number);
+  }
 
-// 2. Modifie l'initialisation de ton socket dans la route '/api/pair' :
-const sock = makeWASocket({
-    auth: {
+  try {
+    // 1. Initialise le stockage de session local
+    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${number}`);
+
+    // 2. Initialise le socket avec le contournement d'empreinte Chrome
+    const sock = makeWASocket({
+      auth: {
         creds: state.creds,
         keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-    },
-    logger: pino({ level: "silent" }),
-    msgRetryCounterCache,
-    
-    // 🔥 FORCE WhatsApp à croire que c'est un vrai navigateur Chrome sur Windows
-    browser: Browsers.appropriate('Chrome'), 
-    
-    // Paramètres réseau pour éviter les déconnexions brutales
-    connectTimeoutMs: 60000, // Laisse 60 secondes pour établir la connexion
-    defaultQueryTimeoutMs: 0,
-    keepAliveIntervalMs: 30000,
-});
-  
+      },
+      logger: pino({ level: "silent" }),
+      msgRetryCounterCache,
+      
+      // Simule un navigateur de bureau standard pour éviter le blocage
+      browser: Browsers.appropriate('Chrome'),
+      
+      // Robustesse de connexion
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 0,
+      keepAliveIntervalMs: 30000,
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    const session = { sock, status: 'pending', reason: null };
+    activeSessions.set(number, session);
+
     let codeRequested = false;
     let settled = false;
 
+    // Enveloppe la récupération du code dans une promesse gérée par les événements du socket
     const code = await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         if (!settled) {
           settled = true;
-          reject(new Error("Timeout : le socket ne s'est jamais connecté"));
+          reject(new Error("Timeout : le socket ne s'est pas connecté dans le délai imparti."));
         }
-      }, 20000);
+      }, 25000);
 
       sock.ev.on('connection.update', async (update) => {
         const { connection, qr, lastDisconnect } = update;
 
-        // Le code ne peut être demandé qu'une fois le socket en train de se connecter (ou qu'un QR est émis) :
-        // le demander juste après makeWASocket() est la cause n°1 des erreurs "Connection Closed".
+        // On ne demande le code que lorsque Baileys a initié la poignée de main réseau
         if (!codeRequested && (connection === 'connecting' || qr)) {
           codeRequested = true;
           try {
+            // Laisse un court délai pour stabiliser le canal Noise
+            await new Promise(r => setTimeout(r, 1500));
             const c = await sock.requestPairingCode(number);
             if (!settled) {
               settled = true;
@@ -90,6 +106,7 @@ const sock = makeWASocket({
           const statusCode = lastDisconnect?.error instanceof Boom
             ? lastDisconnect.error.output?.statusCode
             : undefined;
+          
           session.status = 'failed';
           session.reason = statusCode ?? null;
           console.error(`[GATE] session ${number} fermée (code ${statusCode})`, lastDisconnect?.error);
@@ -108,20 +125,24 @@ const sock = makeWASocket({
 
     res.json({ code });
   } catch (e) {
-    console.error('[GATE] Erreur pairing:', e); // on log la vraie erreur au lieu de l'avaler
+    console.error('[GATE] Erreur pairing:', e);
     activeSessions.delete(number);
-    res.status(500).json({ error: 'Erreur génération' });
+    res.status(500).json({ error: 'Erreur génération. Vérifiez les logs.' });
   }
 });
 
-// Route pour vérifier la connexion
+// Route pour vérifier l'état d'authentification
 app.get('/api/status', (req, res) => {
   const { number } = req.query;
   const session = activeSessions.get(number);
   res.json({
     connected: session?.status === 'connected',
-    status: session?.status || 'unknown', // 'pending' | 'connected' | 'failed' | 'unknown'
+    status: session?.status || 'unknown',
   });
 });
 
-app.listen(8080, () => console.log('GATE ouvert sur le port 8080'));
+// Port dynamique pour s'adapter au panel TogeHost (Pterodactyl) ou Railway
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 GATE ouvert et à l'écoute sur le port ${PORT}`);
+});
