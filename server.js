@@ -88,7 +88,7 @@ app.post('/api/pair', async (req, res) => {
           codeRequested = true;
           try {
             // Laisse un court délai pour stabiliser le canal Noise
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 3000));
             const c = await sock.requestPairingCode(number);
             if (!settled) {
               settled = true;
