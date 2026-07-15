@@ -44,7 +44,7 @@ app.post('/api/pair', async (req, res) => {
     // 2. Initialise le stockage de session local
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${number}`);
 
-    // 3. Initialise le socket avec la version récupérée et le contournement Chrome
+    // 3. Initialise le socket avec la version récupérée et l'empreinte spécifique
     const sock = makeWASocket({
       version, // <-- On injecte la version dynamique ici !
       auth: {
@@ -54,8 +54,8 @@ app.post('/api/pair', async (req, res) => {
       logger: pino({ level: "silent" }),
       msgRetryCounterCache,
       
-      // Simule un navigateur de bureau standard pour éviter le blocage
-      browser: Browsers.appropriate('Chrome'),
+      // Simule une empreinte ultra-spécifique pour contourner le filtre WhatsApp (Erreur 405)
+      browser: ['Ubuntu', 'Chrome', '20.0.04'],
       
       // Robustesse de connexion
       connectTimeoutMs: 60000,
