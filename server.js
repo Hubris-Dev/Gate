@@ -8,15 +8,15 @@ import makeWASocket, {
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
 import NodeCache from 'node-cache';
+import fs from 'fs'; // <-- Ajout du module File System
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public')); // Distribue ton dossier public (index.html)
+app.use(express.static('public')); 
 
 const msgRetryCounterCache = new NodeCache();
-const activeSessions = new Map(); // structure : number -> { sock, status, reason }
+const activeSessions = new Map(); 
 
-// Route pour générer le code de jumelage
 app.post('/api/pair', async (req, res) => {
   const { number } = req.body || {};
 
@@ -24,26 +24,26 @@ app.post('/api/pair', async (req, res) => {
     return res.status(400).json({ error: 'Numéro invalide' });
   }
 
-  // Ferme une éventuelle session active précédente pour ce numéro
+  // 1. Ferme la session active si elle existe en mémoire
   const previous = activeSessions.get(number);
   if (previous && previous.sock) {
-    try {
-      previous.sock.end(undefined);
-    } catch (e) {
-      // ignore
-    }
+    try { previous.sock.end(undefined); } catch (e) {}
     activeSessions.delete(number);
   }
 
+  // 2. NETTOYAGE PHYSIQUE DU DOSSIER (La solution au code 500 / 515)
+  const sessionPath = `./sessions/${number}`;
+  if (fs.existsSync(sessionPath)) {
+    console.log(`[GATE] Suppression des anciennes clés corrompues pour ${number}`);
+    fs.rmSync(sessionPath, { recursive: true, force: true });
+  }
+
   try {
-    // 1. Récupère dynamiquement la TOUTE DERNIÈRE version de WhatsApp Web
     const { version } = await fetchLatestBaileysVersion();
     console.log(`[GATE] Utilisation de la version WhatsApp v${version.join('.')}`);
 
-    // 2. Initialise le stockage de session local
-    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${number}`);
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
-    // 3. Initialise le socket
     const sock = makeWASocket({
       version,
       auth: {
@@ -52,10 +52,7 @@ app.post('/api/pair', async (req, res) => {
       },
       logger: pino({ level: "silent" }),
       msgRetryCounterCache,
-      
-      // L'empreinte ultra-spécifique pour éviter l'erreur 405
-      browser: ['Ubuntu', 'Chrome', '20.0.04'],
-      
+      browser: ['Ubuntu', 'Chrome', '20.0.04'], // Anti-erreur 405
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 0,
       keepAliveIntervalMs: 30000,
@@ -66,12 +63,12 @@ app.post('/api/pair', async (req, res) => {
     const session = { sock, status: 'pending', reason: null };
     activeSessions.set(number, session);
 
-    // Écoute des mises à jour de connexion en arrière-plan (sans bloquer la demande de code)
     sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect } = update;
       
       if (connection === 'open') {
         session.status = 'connected';
+        console.log(`[GATE] ✅ Connexion RÉUSSIE pour le numéro ${number} !`);
       }
 
       if (connection === 'close') {
@@ -85,16 +82,18 @@ app.post('/api/pair', async (req, res) => {
 
         if (statusCode === DisconnectReason.loggedOut) {
           activeSessions.delete(number);
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+          }
         }
       }
     });
 
-    // MÉTHODE DIRECTE : On attend 3.5 secondes que le flux s'ouvre, puis on force la demande
+    // 3. Demande du code après une temporisation de 3.5 secondes
     if (!sock.authState.creds.registered) {
       setTimeout(async () => {
         try {
           const code = await sock.requestPairingCode(number);
-          // Si la réponse n'a pas encore été envoyée, on renvoie le code
           if (!res.headersSent) {
             res.json({ code });
           }
@@ -104,10 +103,10 @@ app.post('/api/pair', async (req, res) => {
             res.status(500).json({ error: 'Erreur lors de la génération du code WhatsApp.' });
           }
         }
-      }, 3500); // 3500 ms = 3.5 secondes
+      }, 3500); 
     } else {
       if (!res.headersSent) {
-        res.status(400).json({ error: 'Ce numéro est déjà lié et enregistré.' });
+        res.status(400).json({ error: 'Ce numéro est déjà lié.' });
       }
     }
 
@@ -120,7 +119,6 @@ app.post('/api/pair', async (req, res) => {
   }
 });
 
-// Route pour vérifier l'état d'authentification
 app.get('/api/status', (req, res) => {
   const { number } = req.query;
   const session = activeSessions.get(number);
@@ -130,7 +128,6 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// Port dynamique pour Railway
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 GATE ouvert et à l'écoute sur le port ${PORT}`);
