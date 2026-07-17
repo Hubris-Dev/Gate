@@ -52,7 +52,7 @@ app.post('/api/pair', async (req, res) => {
       },
       logger: pino({ level: "silent" }),
       msgRetryCounterCache,
-      browser: ['Ubuntu', 'Chrome', '20.0.04'], // Anti-erreur 405
+      browser: ['Chrome', 'Chrome', '120.0.0.0'], // Empreinte standard anti-détection
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 0,
       keepAliveIntervalMs: 30000,
