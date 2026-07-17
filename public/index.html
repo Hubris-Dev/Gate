@@ -260,6 +260,55 @@
     padding-top:24px;
   }
 
+  /* --- AJOUTS API ZONE --- */
+  .api-zone {
+    margin-top: 24px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeIn 0.5s ease forwards;
+  }
+
+  [data-state="connected"] .api-zone {
+    display: flex;
+  }
+
+  .api-input {
+    background: rgba(201,162,74,0.05);
+    border: 1px solid rgba(201,162,74,0.3);
+    border-radius: 2px;
+    color: var(--gold);
+    padding: 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-align: center;
+    word-break: break-all;
+    resize: none;
+    outline: none;
+  }
+
+  .copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--ash);
+    font-family: 'Manrope', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+
+  .copy-btn:hover {
+    color: var(--gold);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   @media (prefers-reduced-motion: reduce){
     .embers span, .seal, .arch, .crack, .status-dot{
       animation:none !important;
@@ -301,6 +350,13 @@
       <div class="status">
         <span class="status-dot"></span>
         <span class="status-text" id="statusText">En attente de confirmation…</span>
+      </div>
+      
+      <!-- --- AJOUTS API ZONE --- -->
+      <div class="api-zone" id="apiZone">
+        <span class="code-label">SESSION ID (BASE64)</span>
+        <textarea class="api-input" id="apiKeyValue" readonly rows="2"></textarea>
+        <button type="button" class="copy-btn" id="copyBtn">Copier la clé</button>
       </div>
     </div>
 
@@ -394,6 +450,27 @@
           clearTimeout(timeoutTimer);
           setState('connected');
           statusText.textContent = 'Connecté.';
+
+          // --- AJOUTS API ZONE ---
+          if(data.apiKey) {
+            document.getElementById('apiKeyValue').value = data.apiKey;
+            
+            // Logique de copie
+            document.getElementById('copyBtn').addEventListener('click', () => {
+              const apiInput = document.getElementById('apiKeyValue');
+              apiInput.select();
+              document.execCommand('copy');
+              
+              const btn = document.getElementById('copyBtn');
+              btn.textContent = 'COPIÉ !';
+              btn.style.color = 'var(--ember)';
+              
+              setTimeout(() => {
+                btn.textContent = 'COPIER LA CLÉ';
+                btn.style.color = 'var(--ash)';
+              }, 2000);
+            });
+          }
         }
       }catch(err){
         failCount++;
