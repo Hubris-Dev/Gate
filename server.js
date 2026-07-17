@@ -9,6 +9,7 @@ import { Boom } from '@hapi/boom';
 import pino from 'pino';
 import NodeCache from 'node-cache';
 import fs from 'fs';
+import path from 'path';
 
 const app = express();
 app.use(express.json());
@@ -17,10 +18,9 @@ app.use(express.static('public'));
 const msgRetryCounterCache = new NodeCache();
 const activeSessions = new Map(); 
 
-// Plafond de tentatives de reconnexion pour éviter le spam WhatsApp
 const MAX_RETRIES = 5;
 
-// Fonction récursive pour gérer la connexion et les redémarrages (515)
+// Fonction de gestion de session WhatsApp
 async function startSession(number, res = null, retryCount = 0) {
   const sessionPath = `./sessions/${number}`;
 
@@ -55,8 +55,8 @@ async function startSession(number, res = null, retryCount = 0) {
       
       if (connection === 'open') {
         session.status = 'connected';
-        console.log(`[GATE] ✅ Connexion RÉUSSIE et finalisée pour le numéro ${number} !`);
-        retryCount = 0; // On remet le compteur à zéro après un succès
+        console.log(`[GATE] ✅ Connexion RÉUSSIE pour le numéro ${number} !`);
+        retryCount = 0; 
       }
 
       if (connection === 'close') {
@@ -66,38 +66,33 @@ async function startSession(number, res = null, retryCount = 0) {
         
         console.error(`[GATE] session ${number} fermée (code ${statusCode})`);
 
-        // Si c'est une vraie déconnexion volontaire/ban (401)
         if (statusCode === DisconnectReason.loggedOut) {
-          console.log(`[GATE] Déconnexion définitive (loggedOut). Nettoyage de ${number}.`);
           activeSessions.delete(number);
           if (fs.existsSync(sessionPath)) {
             fs.rmSync(sessionPath, { recursive: true, force: true });
           }
         } else {
-          // GESTION DU CODE 515 ET AUTRES REDÉMARRAGES REQUIS
+          // Gestion du redémarrage (Code 515)
           if (retryCount < MAX_RETRIES) {
-            console.log(`[GATE] Redémarrage requis. Reconnexion automatique (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
+            console.log(`[GATE] Reconnexion automatique (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
             setTimeout(() => {
-              startSession(number, null, retryCount + 1); // null pour ne pas renvoyer de réponse Express
+              startSession(number, null, retryCount + 1); 
             }, 2000);
           } else {
-            console.error(`[GATE] Échec définitif pour ${number} : plafond de reconnexions atteint.`);
             session.status = 'failed';
-            session.reason = 'max_retries_reached';
             activeSessions.delete(number);
           }
         }
       }
     });
 
-    // Demande du code de jumelage (Uniquement s'il y a une requête Express active et que ce n'est pas déjà enregistré)
+    // Demande du Pairing Code
     if (res && !sock.authState.creds.registered) {
       setTimeout(async () => {
         try {
           const code = await sock.requestPairingCode(number);
           if (!res.headersSent) res.json({ code });
         } catch (e) {
-          console.error('[GATE] Erreur requestPairingCode:', e.message);
           if (!res.headersSent) res.status(500).json({ error: 'Erreur lors de la génération du code.' });
         }
       }, 3500); 
@@ -106,19 +101,15 @@ async function startSession(number, res = null, retryCount = 0) {
     }
 
   } catch (e) {
-    console.error('[GATE] Erreur fatale init:', e);
     activeSessions.delete(number);
     if (res && !res.headersSent) res.status(500).json({ error: 'Erreur critique serveur.' });
   }
 }
 
-// Route principale
+// Route POST : Générer le code
 app.post('/api/pair', async (req, res) => {
   const { number } = req.body || {};
-
-  if (!number || !/^\d{8,15}$/.test(number)) {
-    return res.status(400).json({ error: 'Numéro invalide' });
-  }
+  if (!number || !/^\d{8,15}$/.test(number)) return res.status(400).json({ error: 'Numéro invalide' });
 
   const previous = activeSessions.get(number);
   if (previous && previous.sock) {
@@ -126,27 +117,42 @@ app.post('/api/pair', async (req, res) => {
     activeSessions.delete(number);
   }
 
-  // On nettoie le dossier de force UNIQUEMENT lors d'une nouvelle demande manuelle depuis l'API
   const sessionPath = `./sessions/${number}`;
   if (fs.existsSync(sessionPath)) {
-    console.log(`[GATE] Nouvelle demande API : Suppression des anciennes clés pour ${number}`);
     fs.rmSync(sessionPath, { recursive: true, force: true });
   }
 
-  // On lance la machine
   startSession(number, res, 0);
 });
 
+// Route GET : Vérifier le statut et renvoyer la CLÉ API
 app.get('/api/status', (req, res) => {
   const { number } = req.query;
   const session = activeSessions.get(number);
+  
+  let apiKey = null;
+
+  if (session?.status === 'connected') {
+    try {
+      // Convertit les identifiants en clé Base64 pour l'infrastructure Infernum
+      const credsPath = path.join(process.cwd(), `sessions/${number}/creds.json`);
+      if (fs.existsSync(credsPath)) {
+        const credsData = fs.readFileSync(credsPath);
+        apiKey = credsData.toString('base64');
+      }
+    } catch (e) {
+      console.error("[GATE] Erreur génération clé:", e.message);
+    }
+  }
+
   res.json({
     connected: session?.status === 'connected',
     status: session?.status || 'unknown',
+    apiKey: apiKey 
   });
 });
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 GATE ouvert et à l'écoute sur le port ${PORT}`);
+  console.log(`🚀 GATE ouvert sur le port ${PORT}`);
 });
