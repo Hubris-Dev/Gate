@@ -57,6 +57,14 @@ async function startSession(number, res = null, retryCount = 0) {
         session.status = 'connected';
         console.log(`[GATE] ✅ Connexion RÉUSSIE pour le numéro ${number} !`);
         retryCount = 0; 
+        
+        // 🟢 AUTO-DECONNEXION PROPRE après 15 secondes pour laisser la place à Gilgamesh
+        setTimeout(() => {
+          try {
+            console.log(`[GATE] 💤 Mise en veille du socket pour ${number} pour laisser Gilgamesh travailler.`);
+            sock.end(undefined);
+          } catch(e) {}
+        }, 15000);
       }
 
       if (connection === 'close') {
@@ -66,13 +74,21 @@ async function startSession(number, res = null, retryCount = 0) {
         
         console.error(`[GATE] session ${number} fermée (code ${statusCode})`);
 
-        if (statusCode === DisconnectReason.loggedOut) {
+        // Détection du remplacement de connexion (code 440)
+        const isReplaced = statusCode === 440 || statusCode === DisconnectReason.connectionReplaced || statusCode === DisconnectReason.connectionReplace;
+
+        if (isReplaced) {
+          // 🟢 Ne pas reconnecter si Gilgamesh a pris la main !
+          console.log(`[GATE] 🔄 Connexion remplacée par Gilgamesh (code 440). Pas de reconnexion pour éviter le conflit.`);
+          session.status = 'replaced';
+          activeSessions.delete(number);
+        } else if (statusCode === DisconnectReason.loggedOut) {
           activeSessions.delete(number);
           if (fs.existsSync(sessionPath)) {
             fs.rmSync(sessionPath, { recursive: true, force: true });
           }
         } else {
-          // Gestion du redémarrage (Code 515)
+          // Gestion du redémarrage (Code 515, etc.)
           if (retryCount < MAX_RETRIES) {
             console.log(`[GATE] Reconnexion automatique (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
             setTimeout(() => {
@@ -140,7 +156,6 @@ app.get('/api/status', (req, res) => {
         const credsData = fs.readFileSync(credsPath);
         apiKey = credsData.toString('base64');
       } else {
-        // ✅ Log de synchronisation : confirme si le fichier n'est pas encore écrit sur le disque
         console.log(`[GATE] Attente de l'écriture du fichier creds.json pour ${number}...`);
       }
     } catch (e) {
