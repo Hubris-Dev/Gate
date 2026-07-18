@@ -139,6 +139,9 @@ app.get('/api/status', (req, res) => {
       if (fs.existsSync(credsPath)) {
         const credsData = fs.readFileSync(credsPath);
         apiKey = credsData.toString('base64');
+      } else {
+        // ✅ Log de synchronisation : confirme si le fichier n'est pas encore écrit sur le disque
+        console.log(`[GATE] Attente de l'écriture du fichier creds.json pour ${number}...`);
       }
     } catch (e) {
       console.error("[GATE] Erreur génération clé:", e.message);
