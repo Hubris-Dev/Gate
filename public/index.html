@@ -445,31 +445,35 @@
         if(!res.ok) throw new Error('status not ok');
         const data = await res.json();
         failCount = 0;
-        if(data.connected){
-          clearInterval(pollTimer);
-          clearTimeout(timeoutTimer);
-          setState('connected');
-          statusText.textContent = 'Connecté.';
 
-          // --- AJOUTS API ZONE ---
+        if(data.connected){
+          // ✅ On ne coupe l'intervalle QUE si la clé est bien arrivée
           if(data.apiKey) {
+            clearInterval(pollTimer);
+            clearTimeout(timeoutTimer);
+            setState('connected');
+            statusText.textContent = 'Connecté.';
+
             document.getElementById('apiKeyValue').value = data.apiKey;
-            
+
             // Logique de copie
             document.getElementById('copyBtn').addEventListener('click', () => {
               const apiInput = document.getElementById('apiKeyValue');
               apiInput.select();
               document.execCommand('copy');
-              
+
               const btn = document.getElementById('copyBtn');
               btn.textContent = 'COPIÉ !';
               btn.style.color = 'var(--ember)';
-              
+
               setTimeout(() => {
                 btn.textContent = 'COPIER LA CLÉ';
                 btn.style.color = 'var(--ash)';
               }, 2000);
             });
+          } else {
+            // Connecté côté WhatsApp, mais le fichier creds.json n'est pas encore prêt
+            statusText.textContent = 'Génération de la clé en cours...';
           }
         }
       }catch(err){
