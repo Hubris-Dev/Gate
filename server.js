@@ -23,11 +23,10 @@ const MAX_RETRIES = 5;
 // Fonction de gestion de session WhatsApp
 async function startSession(number, res = null, retryCount = 0) {
   const sessionPath = `./sessions/${number}`;
-
   try {
     const { version } = await fetchLatestBaileysVersion();
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
-
+    
     const sock = makeWASocket({
       version,
       auth: {
@@ -46,54 +45,38 @@ async function startSession(number, res = null, retryCount = 0) {
     });
 
     sock.ev.on('creds.update', saveCreds);
-
+    
     const session = { sock, status: 'pending', reason: null };
     activeSessions.set(number, session);
 
     sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect } = update;
-      
+          
       if (connection === 'open') {
         session.status = 'connected';
         console.log(`[GATE] ✅ Connexion RÉUSSIE pour le numéro ${number} !`);
         retryCount = 0; 
-        
-        // 🟢 AUTO-DECONNEXION PROPRE après 15 secondes pour laisser la place à Gilgamesh
-        setTimeout(() => {
-          try {
-            console.log(`[GATE] 💤 Mise en veille du socket pour ${number} pour laisser Gilgamesh travailler.`);
-            sock.end(undefined);
-          } catch(e) {}
-        }, 15000);
       }
-
+      
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error instanceof Boom
           ? lastDisconnect.error.output?.statusCode
           : undefined;
-        
+              
         console.error(`[GATE] session ${number} fermée (code ${statusCode})`);
-
-        // Détection du remplacement de connexion (code 440)
-        const isReplaced = statusCode === 440 || statusCode === DisconnectReason.connectionReplaced || statusCode === DisconnectReason.connectionReplace;
-
-        if (isReplaced) {
-          // 🟢 Ne pas reconnecter si Gilgamesh a pris la main !
-          console.log(`[GATE] 🔄 Connexion remplacée par Gilgamesh (code 440). Pas de reconnexion pour éviter le conflit.`);
-          session.status = 'replaced';
-          activeSessions.delete(number);
-        } else if (statusCode === DisconnectReason.loggedOut) {
+        
+        if (statusCode === DisconnectReason.loggedOut) {
           activeSessions.delete(number);
           if (fs.existsSync(sessionPath)) {
             fs.rmSync(sessionPath, { recursive: true, force: true });
           }
         } else {
-          // Gestion du redémarrage (Code 515, etc.)
+          // Gestion du redémarrage automatique
           if (retryCount < MAX_RETRIES) {
-            console.log(`[GATE] Reconnexion automatique (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
+            console.log(`[GATE] Reconnexion automatique pour ${number} (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
             setTimeout(() => {
               startSession(number, null, retryCount + 1); 
-            }, 2000);
+            }, 3000);
           } else {
             session.status = 'failed';
             activeSessions.delete(number);
@@ -109,63 +92,95 @@ async function startSession(number, res = null, retryCount = 0) {
           const code = await sock.requestPairingCode(number);
           if (!res.headersSent) res.json({ code });
         } catch (e) {
+          console.error(`[GATE] Erreur génération pairing code pour ${number}:`, e.message);
           if (!res.headersSent) res.status(500).json({ error: 'Erreur lors de la génération du code.' });
         }
       }, 3500); 
     } else if (res && sock.authState.creds.registered) {
       if (!res.headersSent) res.status(400).json({ error: 'Ce numéro est déjà lié.' });
     }
-
   } catch (e) {
+    console.error(`[GATE] Erreur critique session ${number}:`, e.message);
     activeSessions.delete(number);
     if (res && !res.headersSent) res.status(500).json({ error: 'Erreur critique serveur.' });
+  }
+}
+
+// Restauration automatique de toutes les sessions existantes sur le disque au démarrage
+const sessionsDir = './sessions';
+if (fs.existsSync(sessionsDir)) {
+  try {
+    const folders = fs.readdirSync(sessionsDir);
+    for (const folder of folders) {
+      if (/^\d{8,15}$/.test(folder)) {
+        console.log(`[GATE] 🔄 Restauration automatique de la session pour : ${folder}`);
+        startSession(folder).catch(err => {
+          console.error(`[GATE] Échec restauration ${folder}:`, err.message);
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[GATE] Erreur lors de la lecture du répertoire des sessions:", err.message);
   }
 }
 
 // Route POST : Générer le code
 app.post('/api/pair', async (req, res) => {
   const { number } = req.body || {};
-  if (!number || !/^\d{8,15}$/.test(number)) return res.status(400).json({ error: 'Numéro invalide' });
-
+  if (!number || !/^\d{8,15}$/.test(number)) {
+    return res.status(400).json({ error: 'Numéro invalide' });
+  }
+  
   const previous = activeSessions.get(number);
   if (previous && previous.sock) {
     try { previous.sock.end(undefined); } catch (e) {}
     activeSessions.delete(number);
   }
-
+  
   const sessionPath = `./sessions/${number}`;
   if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
   }
-
+  
   startSession(number, res, 0);
 });
 
 // Route GET : Vérifier le statut et renvoyer la CLÉ API
 app.get('/api/status', (req, res) => {
   const { number } = req.query;
+  if (!number) return res.status(400).json({ error: 'Numéro requis' });
+
   const session = activeSessions.get(number);
+  const credsPath = path.join(process.cwd(), `sessions/${number}/creds.json`);
+  const fileExists = fs.existsSync(credsPath);
   
   let apiKey = null;
+  let isConnected = session?.status === 'connected';
 
-  if (session?.status === 'connected') {
+  // 1. Si connecté et le fichier existe, on extrait la clé
+  if (fileExists) {
     try {
-      // Convertit les identifiants en clé Base64 pour l'infrastructure Infernum
-      const credsPath = path.join(process.cwd(), `sessions/${number}/creds.json`);
-      if (fs.existsSync(credsPath)) {
-        const credsData = fs.readFileSync(credsPath);
-        apiKey = credsData.toString('base64');
-      } else {
-        console.log(`[GATE] Attente de l'écriture du fichier creds.json pour ${number}...`);
-      }
+      const credsData = fs.readFileSync(credsPath);
+      apiKey = credsData.toString('base64');
+      isConnected = true; // Forcer à true car les identifiants de session existent physiquement
     } catch (e) {
-      console.error("[GATE] Erreur génération clé:", e.message);
+      console.error(`[GATE] Erreur lors de la lecture de creds.json pour ${number}:`, e.message);
+    }
+  } 
+  // 2. Fallback de secours immédiat en mémoire vive si Baileys n'a pas encore fini d'écrire le fichier sur le disque
+  else if (session?.status === 'connected' && session.sock?.authState?.creds) {
+    try {
+      console.log(`[GATE] ⚡ Clé récupérée directement en mémoire vive pour ${number}`);
+      const credsJSON = JSON.stringify(session.sock.authState.creds);
+      apiKey = Buffer.from(credsJSON).toString('base64');
+    } catch (e) {
+      console.error(`[GATE] Erreur lors de la sérialisation mémoire de creds pour ${number}:`, e.message);
     }
   }
 
   res.json({
-    connected: session?.status === 'connected',
-    status: session?.status || 'unknown',
+    connected: isConnected,
+    status: isConnected ? 'connected' : (session?.status || 'unknown'),
     apiKey: apiKey 
   });
 });
