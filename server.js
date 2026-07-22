@@ -10,6 +10,7 @@ import pino from 'pino';
 import NodeCache from 'node-cache';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 const app = express();
 app.use(express.json());
@@ -18,8 +19,21 @@ app.use(express.static('public'));
 const msgRetryCounterCache = new NodeCache();
 const activeSessions = new Map();
 
+// GATE est un service PUBLIC : /api/pair et /api/status ne sont plus derrière
+// la clé maître. Chaque appairage reçoit son propre token à usage unique —
+// c'est ce token (pas le numéro) qui prouve qu'on a le droit de lire une clé.
+// Sans ça, n'importe qui connaissant un numéro pourrait voler sa session.
+const pairingTokens = new Map(); // number -> { token, expiresAt }
+const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 min pour compléter le pairing
+
+// Rate limit basique par IP sur /api/pair, pour empêcher qu'on spam/tue
+// la session d'un numéro qui n'est pas le sien.
+const rateLimitMap = new Map(); // ip -> timestamps[]
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const RATE_LIMIT_MAX = 3;
+
 const MAX_RETRIES = 5;
-const GATE_API_KEY = process.env.GATE_API_KEY;
+const GATE_API_KEY = process.env.GATE_API_KEY; // réservée aux routes d'admin (purge)
 
 // Version Baileys mise en cache pour éviter un appel réseau à chaque session
 let cachedVersion = null;
@@ -31,7 +45,7 @@ async function getBaileysVersion() {
   return cachedVersion;
 }
 
-// Middleware de protection par clé API (protège /api/pair et /api/status)
+// Middleware de protection par clé API — réservé aux routes d'admin (purge)
 function requireApiKey(req, res, next) {
   if (!GATE_API_KEY) {
     console.warn('[GATE] ⚠️ GATE_API_KEY non défini — routes non protégées (à éviter en production)');
@@ -44,8 +58,24 @@ function requireApiKey(req, res, next) {
   next();
 }
 
+// Limite le nombre d'invocations par IP — évite qu'on puisse harceler/tuer
+// en boucle la session d'un numéro qui ne nous appartient pas.
+function rateLimitPair(req, res, next) {
+  const ip = req.ip || req.connection?.remoteAddress || 'inconnu';
+  const now = Date.now();
+  const attempts = (rateLimitMap.get(ip) || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+
+  if (attempts.length >= RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: 'Trop de tentatives. Réessaie dans quelques minutes.' });
+  }
+
+  attempts.push(now);
+  rateLimitMap.set(ip, attempts);
+  next();
+}
+
 // Fonction de gestion de session WhatsApp
-async function startSession(number, res = null, retryCount = 0) {
+async function startSession(number, res = null, retryCount = 0, token = null) {
   const sessionPath = `./sessions/${number}`;
   try {
     const version = await getBaileysVersion();
@@ -99,7 +129,7 @@ async function startSession(number, res = null, retryCount = 0) {
             const delay = Math.min(3000 * Math.pow(2, retryCount), 30000);
             console.log(`[GATE] Reconnexion automatique pour ${number} dans ${delay}ms (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
             setTimeout(() => {
-              startSession(number, null, retryCount + 1);
+              startSession(number, null, retryCount + 1, token);
             }, delay);
           } else {
             session.status = 'failed';
@@ -115,7 +145,7 @@ async function startSession(number, res = null, retryCount = 0) {
       setTimeout(async () => {
         try {
           const code = await sock.requestPairingCode(number);
-          if (!res.headersSent) res.json({ code });
+          if (!res.headersSent) res.json({ code, sessionToken: token });
         } catch (e) {
           console.error(`[GATE] Erreur génération pairing code pour ${number}:`, e.message);
           if (!res.headersSent) res.status(500).json({ error: 'Erreur lors de la génération du code.' });
@@ -149,8 +179,9 @@ if (fs.existsSync(sessionsDir)) {
   }
 }
 
-// Route POST : Générer le code
-app.post('/api/pair', requireApiKey, async (req, res) => {
+// Route POST : Générer le code — PUBLIQUE (rate limitée), pas de clé maître ici.
+// Chaque appel reçoit un sessionToken unique : lui seul pourra relire cette clé.
+app.post('/api/pair', rateLimitPair, async (req, res) => {
   const { number } = req.body || {};
   if (!number || !/^\d{8,15}$/.test(number)) {
     return res.status(400).json({ error: 'Numéro invalide' });
@@ -167,14 +198,28 @@ app.post('/api/pair', requireApiKey, async (req, res) => {
     fs.rmSync(sessionPath, { recursive: true, force: true });
   }
 
-  startSession(number, res, 0);
+  const token = crypto.randomBytes(24).toString('hex');
+  pairingTokens.set(number, { token, expiresAt: Date.now() + TOKEN_TTL_MS });
+
+  startSession(number, res, 0, token);
 });
 
-// Route GET : Vérifier le statut et renvoyer la CLÉ API
-app.get('/api/status', requireApiKey, (req, res) => {
-  const { number } = req.query;
+// Route GET : Vérifier le statut et renvoyer la CLÉ — PUBLIQUE, mais protégée par
+// le sessionToken émis lors du /api/pair. Sans le bon token, un numéro seul ne
+// suffit pas à récupérer une clé qui n'est pas la tienne.
+app.get('/api/status', (req, res) => {
+  const { number, token } = req.query;
   if (!number || !/^\d{8,15}$/.test(number)) {
     return res.status(400).json({ error: 'Numéro invalide' });
+  }
+
+  const pairing = pairingTokens.get(number);
+  if (!pairing || pairing.token !== token) {
+    return res.status(403).json({ error: 'Token invalide — cette session ne t\'appartient pas.' });
+  }
+  if (Date.now() > pairing.expiresAt) {
+    pairingTokens.delete(number);
+    return res.status(410).json({ error: 'Session expirée. Relance un appairage.' });
   }
 
   const session = activeSessions.get(number);
@@ -200,6 +245,22 @@ app.get('/api/status', requireApiKey, (req, res) => {
     } catch (e) {
       console.error(`[GATE] Erreur lors de la sérialisation mémoire de creds pour ${number}:`, e.message);
     }
+  }
+
+  // Auto-destruction : une fois la clé livrée avec succès, on ferme et purge la
+  // session côté Gate. Personne (pas même le propriétaire) ne peut la relire deux fois.
+  if (apiKey) {
+    pairingTokens.delete(number);
+    setTimeout(() => {
+      const s = activeSessions.get(number);
+      if (s?.sock) { try { s.sock.end(undefined); } catch (e) {} }
+      activeSessions.delete(number);
+      const purgePath = `./sessions/${number}`;
+      if (fs.existsSync(purgePath)) {
+        fs.rmSync(purgePath, { recursive: true, force: true });
+      }
+      console.log(`[GATE] 🔥 Auto-destruction de la session ${number} après livraison de la clé.`);
+    }, 1500);
   }
 
   res.json({
@@ -266,7 +327,8 @@ process.on('SIGINT', shutdown);
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 GATE ouvert sur le port ${PORT}`);
+  console.log('[GATE] /api/pair et /api/status sont publiques, protégées par sessionToken (pas la clé maître).');
   if (!GATE_API_KEY) {
-    console.warn('[GATE] ⚠️ Aucune GATE_API_KEY définie — les routes /api/pair et /api/status sont accessibles sans authentification.');
+    console.warn('[GATE] ⚠️ Aucune GATE_API_KEY définie — les routes DELETE (/api/session, /api/sessions) sont accessibles sans authentification.');
   }
 });
