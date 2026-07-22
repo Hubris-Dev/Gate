@@ -4,375 +4,458 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GATE — Infernum Entreprise</title>
-<meta name="description" content="GATE — connecte ton numéro WhatsApp à l'infrastructure d'Infernum Entreprise.">
+<meta name="description" content="GATE — Interface rituelle d'accès à l'infrastructure d'Infernum Entreprise.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Manrope:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --abyss:#0c0a08;
-    --marble:#e9e4d8;
-    --ash:#948a7d;
-    --gold:#c9a24a;
-    --blood:#8c1f2b;
-    --ember:#e2622f;
+  :root {
+    --abyss: #070605;
+    --void: #0d0b09;
+    --surface: #14110e;
+    --marble: #ece6da;
+    --ash: #8e8578;
+    --gold: #d4af37;
+    --gold-glow: rgba(212, 175, 55, 0.25);
+    --blood: #991b1b;
+    --ember: #ea580c;
+    --border-gold: rgba(212, 175, 55, 0.22);
+    --border-subtle: rgba(236, 230, 218, 0.08);
   }
 
-  *{ box-sizing:border-box; margin:0; padding:0; }
-  html,body{ height:100%; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--abyss); color: var(--marble); font-family: 'Manrope', sans-serif; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
 
-  body{
-    background:var(--abyss);
-    color:var(--marble);
-    font-family:'Manrope', sans-serif;
-    -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
+  /* Background Ambient Layers */
+  .bg-layer { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+  
+  .vignette {
+    background: radial-gradient(circle at 50% 30%, rgba(20, 17, 14, 0.4) 0%, var(--abyss) 85%);
   }
 
-  .scene{
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    min-height:100vh;
-    padding:32px 20px;
-    text-align:center;
+  .glow-orb {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    width: 650px;
+    height: 650px;
+    transform: translate(-50%, -20%);
+    background: radial-gradient(circle, var(--gold-glow) 0%, rgba(0,0,0,0) 70%);
+    filter: blur(40px);
+    opacity: 0.7;
+    transition: opacity 1s ease;
   }
 
-  .glow{
-    position:absolute;
-    top:18%;
-    left:50%;
-    width:520px;
-    height:520px;
-    transform:translateX(-50%);
-    background:radial-gradient(circle, rgba(201,162,74,0.16) 0%, rgba(201,162,74,0) 70%);
-    pointer-events:none;
-    z-index:0;
+  /* Animated Embers */
+  .embers span {
+    position: absolute;
+    bottom: -10px;
+    width: 2px; height: 2px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 6px var(--gold);
+    opacity: 0;
+    animation: rise linear infinite;
+  }
+  .embers span:nth-child(1){ left:10%; animation-delay:0s; animation-duration:12s; }
+  .embers span:nth-child(2){ left:25%; animation-delay:3s; animation-duration:9s; }
+  .embers span:nth-child(3){ left:45%; animation-delay:1.5s; animation-duration:14s; }
+  .embers span:nth-child(4){ left:60%; animation-delay:4s; animation-duration:11s; }
+  .embers span:nth-child(5){ left:78%; animation-delay:2s; animation-duration:10s; }
+  .embers span:nth-child(6){ left:90%; animation-delay:5s; animation-duration:13s; }
+
+  @keyframes rise {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    20% { opacity: 0.6; }
+    80% { opacity: 0.3; }
+    100% { transform: translateY(-105vh) scale(0.2); opacity: 0; }
   }
 
-  .embers{ position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
-  .embers span{
-    position:absolute;
-    bottom:-10px;
-    width:3px; height:3px;
-    border-radius:50%;
-    background:var(--gold);
-    opacity:0;
-    animation:rise linear infinite;
-  }
-  .embers span:nth-child(1){ left:6%;  animation-delay:0s;   animation-duration:11s; }
-  .embers span:nth-child(2){ left:16%; animation-delay:2s;   animation-duration:9s;  }
-  .embers span:nth-child(3){ left:28%; animation-delay:4.5s; animation-duration:13s; }
-  .embers span:nth-child(4){ left:41%; animation-delay:1s;   animation-duration:10s; }
-  .embers span:nth-child(5){ left:57%; animation-delay:3.5s; animation-duration:12s; }
-  .embers span:nth-child(6){ left:69%; animation-delay:0.5s; animation-duration:9.5s;}
-  .embers span:nth-child(7){ left:82%; animation-delay:2.8s; animation-duration:11.5s;}
-  .embers span:nth-child(8){ left:92%; animation-delay:5s;   animation-duration:10.5s;}
-
-  @keyframes rise{
-    0%{ transform:translateY(0) scale(1); opacity:0; }
-    12%{ opacity:0.55; }
-    88%{ opacity:0.2; }
-    100%{ transform:translateY(-100vh) scale(0.3); opacity:0; }
-  }
-
-  .eyebrow{
-    position:relative;
-    z-index:1;
-    font-size:11px;
-    letter-spacing:0.32em;
-    color:var(--ash);
-    text-transform:uppercase;
-    font-weight:600;
-  }
-
-  main.content{
-    position:relative;
-    z-index:1;
-    margin:auto 0;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    max-width:420px;
-    width:100%;
-  }
-
-  .seal{ width:132px; height:132px; margin:36px 0 28px; }
-  .seal-svg{ width:100%; height:100%; }
-
-  .seal-svg .arch{
-    fill:none;
-    stroke:var(--marble);
-    stroke-width:2.6;
-    stroke-linecap:round;
-    stroke-linejoin:round;
-    transition:stroke 0.7s ease, filter 0.7s ease;
-  }
-
-  .seal-svg .crack{
-    fill:none;
-    stroke:var(--blood);
-    stroke-width:2;
-    stroke-linecap:round;
-    stroke-linejoin:round;
-    opacity:0;
-    transition:opacity 0.7s ease, stroke 0.7s ease, filter 0.7s ease;
-  }
-
-  [data-state="loading"] .seal{ animation:breathe 1.5s ease-in-out infinite; }
-  [data-state="loading"] .arch{ stroke:var(--gold); }
-
-  [data-state="pending"] .arch{ stroke:var(--gold); filter:drop-shadow(0 0 6px rgba(201,162,74,0.55)); }
-  [data-state="pending"] .crack{ opacity:0.8; stroke:var(--gold); animation:crackPulse 2.4s ease-in-out infinite; }
-
-  [data-state="connected"] .arch{ stroke:var(--gold); filter:drop-shadow(0 0 11px rgba(201,162,74,0.85)); }
-  [data-state="connected"] .crack{ opacity:1; stroke:var(--ember); filter:drop-shadow(0 0 9px rgba(226,98,47,0.8)); animation:none; }
-
-  [data-state="error"] .arch, [data-state="error"] .crack{
-    stroke:var(--blood); opacity:1; animation:flash 0.35s ease-in-out 2;
-  }
-
-  @keyframes breathe{ 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
-  @keyframes crackPulse{ 0%,100%{ opacity:0.55; } 50%{ opacity:1; } }
-  @keyframes flash{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
-
-  h1.wordmark{
-    font-family:'Cinzel', serif;
-    font-weight:700;
-    font-size:clamp(2.6rem, 9vw, 4rem);
-    letter-spacing:0.14em;
-    color:var(--marble);
-  }
-
-  .subhead{
-    margin-top:14px;
-    color:var(--ash);
-    font-size:15px;
-    line-height:1.5;
-    max-width:320px;
-  }
-
-  .pair-form{
-    margin-top:32px;
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    width:100%;
-  }
-
-  .pair-form input{
-    background:transparent;
-    border:1px solid rgba(233,228,216,0.22);
-    border-radius:2px;
-    padding:14px 16px;
-    color:var(--marble);
-    font-family:'Space Mono', monospace;
-    font-size:15px;
-    text-align:center;
-    letter-spacing:0.04em;
-    width:100%;
-  }
-
-  .pair-form input::placeholder{ color:rgba(233,228,216,0.35); }
-  .pair-form input:focus-visible{ outline:none; border-color:var(--gold); }
-
-  .pair-form button{
-    background:transparent;
-    border:1px solid var(--gold);
-    color:var(--gold);
-    font-family:'Manrope', sans-serif;
-    font-weight:600;
-    font-size:13px;
-    letter-spacing:0.18em;
-    text-transform:uppercase;
-    padding:15px 16px;
-    border-radius:2px;
-    cursor:pointer;
-    transition:background 0.3s ease, color 0.3s ease;
-  }
-
-  .pair-form button:hover:not(:disabled),
-  .pair-form button:focus-visible{
-    background:var(--gold);
-    color:var(--abyss);
-    outline:none;
-  }
-
-  .pair-form button:disabled{ opacity:0.55; cursor:default; }
-
-  .code-zone{ margin-top:36px; width:100%; }
-
-  .code-label{
-    display:block;
-    font-size:11px;
-    letter-spacing:0.28em;
-    text-transform:uppercase;
-    color:var(--ash);
-    margin-bottom:10px;
-  }
-
-  .code-display{
-    font-family:'Space Mono', monospace;
-    font-weight:700;
-    font-size:clamp(1.6rem, 6vw, 2.2rem);
-    letter-spacing:0.12em;
-    color:var(--gold);
-    text-shadow:0 0 18px rgba(201,162,74,0.4);
-  }
-
-  .instructions{ margin-top:16px; font-size:13px; color:var(--ash); line-height:1.6; }
-
-  .status{
-    margin-top:22px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:9px;
-    font-size:13px;
-    color:var(--ash);
-  }
-
-  .status-dot{
-    width:8px; height:8px;
-    border-radius:50%;
-    background:var(--gold);
-    animation:dotPulse 1.5s ease-in-out infinite;
-  }
-
-  [data-state="connected"] .status-dot{ background:var(--ember); animation:none; }
-
-  @keyframes dotPulse{
-    0%,100%{ opacity:1; box-shadow:0 0 0 0 rgba(201,162,74,0.45); }
-    50%{ opacity:0.45; box-shadow:0 0 0 6px rgba(201,162,74,0); }
-  }
-
-  .error-line{ margin-top:18px; color:var(--blood); font-size:13px; }
-
-  footer.signature{
-    position:relative;
-    z-index:1;
-    font-size:10px;
-    letter-spacing:0.28em;
-    text-transform:uppercase;
-    color:var(--ash);
-    opacity:0.7;
-    padding-top:24px;
-  }
-
-  /* --- AJOUTS API ZONE --- */
-  .api-zone {
-    margin-top: 24px;
-    display: none;
-    flex-direction: column;
-    gap: 12px;
-    animation: fadeIn 0.5s ease forwards;
-  }
-
-  [data-state="connected"] .api-zone {
+  /* Main Scene Container */
+  .scene {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 40px 24px;
   }
 
-  .api-input {
-    background: rgba(201,162,74,0.05);
-    border: 1px solid rgba(201,162,74,0.3);
+  header.brand {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.38em;
+    color: var(--ash);
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* Content Cards / Views */
+  .view-container {
+    width: 100%;
+    max-width: 440px;
+    margin: auto 0;
+    position: relative;
+  }
+
+  .card {
+    background: rgba(13, 11, 9, 0.65);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    padding: 40px 32px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Stage Sigil / Seal */
+  .seal-wrapper {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 28px;
+    position: relative;
+  }
+
+  .seal-svg { width: 100%; height: 100%; overflow: visible; }
+  
+  .seal-svg .arch {
+    fill: none;
+    stroke: var(--marble);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    transition: stroke 0.8s ease, filter 0.8s ease;
+  }
+
+  .seal-svg .crack {
+    fill: none;
+    stroke: var(--blood);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    opacity: 0;
+    transition: opacity 0.8s ease, stroke 0.8s ease, filter 0.8s ease;
+  }
+
+  /* State Animating Sigils */
+  [data-state="loading"] .arch { stroke: var(--gold); filter: drop-shadow(0 0 8px var(--gold-glow)); }
+  [data-state="loading"] .seal-wrapper { animation: pulse 2s ease-in-out infinite; }
+
+  [data-state="pending"] .arch { stroke: var(--gold); filter: drop-shadow(0 0 10px rgba(212,175,55,0.4)); }
+  [data-state="pending"] .crack { opacity: 0.85; stroke: var(--gold); animation: crackGlow 2s ease-in-out infinite; }
+
+  [data-state="connected"] .arch { stroke: var(--gold); filter: drop-shadow(0 0 15px rgba(212,175,55,0.8)); }
+  [data-state="connected"] .crack { opacity: 1; stroke: var(--ember); filter: drop-shadow(0 0 12px var(--ember)); }
+
+  [data-state="error"] .arch, [data-state="error"] .crack { stroke: var(--blood); opacity: 1; animation: errorShake 0.4s ease; }
+
+  @keyframes pulse { 0%,100%{ opacity: 1; } 50%{ opacity: 0.4; } }
+  @keyframes crackGlow { 0%,100%{ opacity: 0.5; } 50%{ opacity: 1; } }
+  @keyframes errorShake { 0%,100%{ transform: translateX(0); } 25%{ transform: translateX(-4px); } 75%{ transform: translateX(4px); } }
+
+  /* Typography */
+  h1.title {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    font-size: clamp(2.2rem, 7vw, 3rem);
+    letter-spacing: 0.16em;
+    color: var(--marble);
+    text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+  }
+
+  .description {
+    margin-top: 14px;
+    color: var(--ash);
+    font-size: 14px;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  /* Form & Interactive Elements */
+  .form-group {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .input-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  input[type="tel"] {
+    width: 100%;
+    background: rgba(7, 6, 5, 0.6);
+    border: 1px solid var(--border-subtle);
     border-radius: 2px;
+    padding: 16px;
+    color: var(--marble);
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    text-align: center;
+    letter-spacing: 0.08em;
+    transition: all 0.3s ease;
+  }
+
+  input[type="tel"]::placeholder { color: rgba(142, 133, 120, 0.4); }
+  
+  input[type="tel"]:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+    background: rgba(13, 11, 9, 0.8);
+  }
+
+  .btn-primary {
+    background: transparent;
+    border: 1px solid var(--border-gold);
     color: var(--gold);
-    padding: 12px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    padding: 16px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--gold);
+    color: var(--abyss);
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Code Section */
+  .code-zone {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px dashed var(--border-subtle);
+  }
+
+  .code-label {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ash);
+  }
+
+  .code-display {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(1.8rem, 6vw, 2.4rem);
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    margin: 12px 0;
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
+  }
+
+  .instructions {
+    font-size: 12px;
+    color: var(--ash);
+    line-height: 1.5;
+  }
+
+  /* Status Indicator */
+  .status-bar {
+    margin-top: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ash);
+    background: rgba(255,255,255,0.02);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border-subtle);
+  }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: statusPulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes statusPulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.8); }
+  }
+
+  .error-message {
+    margin-top: 16px;
+    color: #ef4444;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Overlay Modal for Key Delivery */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 6, 5, 0.85);
+    backdrop-filter: blur(20px);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-card {
+    background: var(--surface);
+    border: 1px solid var(--border-gold);
+    border-radius: 4px;
+    padding: 40px 32px;
+    max-width: 460px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(212, 175, 55, 0.15);
+    transform: translateY(20px) scale(0.95);
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .modal-overlay.active .modal-card {
+    transform: translateY(0) scale(1);
+  }
+
+  .modal-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.8rem;
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+
+  .key-textarea {
+    width: 100%;
+    background: rgba(7, 6, 5, 0.8);
+    border: 1px solid var(--border-subtle);
+    border-radius: 2px;
+    color: var(--marble);
     font-family: 'Space Mono', monospace;
     font-size: 11px;
-    text-align: center;
-    word-break: break-all;
+    padding: 14px;
+    margin: 20px 0 16px;
     resize: none;
+    word-break: break-all;
     outline: none;
   }
 
-  .copy-btn {
-    background: transparent;
-    border: none;
-    color: var(--ash);
-    font-family: 'Manrope', sans-serif;
+  .key-warning {
     font-size: 11px;
-    font-weight: 600;
+    color: var(--ember);
+    margin-bottom: 24px;
+    line-height: 1.4;
+  }
+
+  footer.signature {
+    font-size: 10px;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
-    cursor: pointer;
-    transition: color 0.3s ease;
+    color: var(--ash);
+    opacity: 0.5;
   }
 
-  .copy-btn:hover {
-    color: var(--gold);
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @media (prefers-reduced-motion: reduce){
-    .embers span, .seal, .arch, .crack, .status-dot{
-      animation:none !important;
-      transition:none !important;
-    }
-  }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<div class="scene" data-state="idle" id="scene">
-  <div class="glow" aria-hidden="true"></div>
-  <div class="embers" aria-hidden="true">
-    <span></span><span></span><span></span><span></span>
-    <span></span><span></span><span></span><span></span>
-  </div>
 
-  <header class="eyebrow">Infernum Entreprise</header>
-
-  <main class="content">
-    <div class="seal">
-      <svg class="seal-svg" viewBox="0 0 100 100" aria-hidden="true">
-        <path class="arch" d="M28,78 L28,42 A22,22 0 0 1 72,42 L72,78" />
-        <path class="crack" d="M50,24 L45,34 L54,44 L44,54 L53,64 L47,74 L50,80" />
-      </svg>
-    </div>
-
-    <h1 class="wordmark">GATE</h1>
-    <p class="subhead">Relie ton numéro WhatsApp à l'infrastructure d'Infernum.</p>
-
-    <form class="pair-form" id="pairForm">
-      <input type="tel" id="numberInput" placeholder="+33 6 12 34 56 78" autocomplete="tel" required>
-      <button type="submit" id="submitBtn">Ouvrir le Gate</button>
-    </form>
-
-    <div class="code-zone" id="codeZone" hidden>
-      <span class="code-label">Ton code</span>
-      <div class="code-display" id="codeDisplay">— — — —</div>
-      <p class="instructions">WhatsApp → Appareils liés → Lier un appareil → entre ce code</p>
-      <div class="status">
-        <span class="status-dot"></span>
-        <span class="status-text" id="statusText">En attente de confirmation…</span>
-      </div>
-      
-      <!-- --- AJOUTS API ZONE --- -->
-      <div class="api-zone" id="apiZone">
-        <span class="code-label">SESSION ID (BASE64)</span>
-        <textarea class="api-input" id="apiKeyValue" readonly rows="2"></textarea>
-        <button type="button" class="copy-btn" id="copyBtn">Copier la clé</button>
-      </div>
-    </div>
-
-    <p class="error-line" id="errorLine" hidden></p>
-  </main>
-
-  <footer class="signature">Infernum Entreprise — créé par HUBRIS</footer>
+<div class="bg-layer vignette"></div>
+<div class="bg-layer glow-orb" id="glowOrb"></div>
+<div class="bg-layer embers" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span><span></span>
 </div>
 
-<noscript>Active JavaScript pour utiliser le Gate.</noscript>
+<div class="scene" id="scene" data-state="idle">
+  <header class="brand">
+    <span class="eyebrow">Infernum Entreprise</span>
+  </header>
+
+  <div class="view-container">
+    <!-- Main Form Card -->
+    <main class="card" id="mainCard">
+      <div class="seal-wrapper">
+        <svg class="seal-svg" viewBox="0 0 100 100" aria-hidden="true">
+          <path class="arch" d="M28,78 L28,42 A22,22 0 0 1 72,42 L72,78" />
+          <path class="crack" d="M50,24 L45,34 L54,44 L44,54 L53,64 L47,74 L50,80" />
+        </svg>
+      </div>
+
+      <h1 class="title">GATE</h1>
+      <p class="description" id="stepDescription">Invoque l'accès rituel pour sceller ton numéro à l'infrastructure.</p>
+
+      <form class="form-group" id="pairForm">
+        <div class="input-wrapper">
+          <input type="tel" id="numberInput" placeholder="+33 6 12 34 56 78" autocomplete="tel" required>
+        </div>
+        <button type="submit" class="btn-primary" id="submitBtn">Ouvrir Le Gate</button>
+      </form>
+
+      <!-- Code Presentation View -->
+      <div class="code-zone" id="codeZone" hidden>
+        <span class="code-label">Sceau d'Appairage</span>
+        <div class="code-display" id="codeDisplay">— — — —</div>
+        <p class="instructions">WhatsApp → Appareils liés → Lier un appareil → Saisir le code</p>
+        
+        <div class="status-bar">
+          <span class="status-dot"></span>
+          <span id="statusText">En attente de confirmation…</span>
+        </div>
+      </div>
+
+      <p class="error-message" id="errorLine" hidden></p>
+    </main>
+  </div>
+
+  <footer class="signature">Architecturé par HUBRIS</footer>
+</div>
+
+<!-- Modal overlay for session key delivery -->
+<div class="modal-overlay" id="keyModal">
+  <div class="modal-card">
+    <h2 class="modal-title">GATE OUVERT</h2>
+    <p class="description">La clé de session a été générée avec succès.</p>
+    
+    <textarea class="key-textarea" id="apiKeyValue" readonly rows="4"></textarea>
+
+    <p class="key-warning">🔥 **Auto-destruction active** : Cette clé est unique et ne sera plus jamais réaffichée. Copie-la immédiatement.</p>
+
+    <button type="button" class="btn-primary" id="copyBtn" style="width: 100%;">Copier La Clé De Session</button>
+  </div>
+</div>
+
+<noscript>JavaScript est requis pour franchir le Gate.</noscript>
 
 <script>
-  // ⚠️ À vérifier / adapter selon les vraies routes du backend :
+  // Endpoints API
   const PAIR_ENDPOINT = '/api/pair';
   const STATUS_ENDPOINT = '/api/status';
 
+  // Éléments UI
   const scene = document.getElementById('scene');
   const form = document.getElementById('pairForm');
   const numberInput = document.getElementById('numberInput');
@@ -381,104 +464,122 @@
   const codeDisplay = document.getElementById('codeDisplay');
   const statusText = document.getElementById('statusText');
   const errorLine = document.getElementById('errorLine');
+  const stepDescription = document.getElementById('stepDescription');
+  
+  // Modal Éléments
+  const keyModal = document.getElementById('keyModal');
+  const apiKeyValue = document.getElementById('apiKeyValue');
+  const copyBtn = document.getElementById('copyBtn');
 
+  // État local de session
   let pollTimer = null;
   let timeoutTimer = null;
   let currentNumber = '';
+  let currentSessionToken = '';
 
-  function setState(s){ scene.dataset.state = s; }
+  function setState(state) {
+    scene.dataset.state = state;
+  }
 
-  function showError(msg){
+  function showError(msg) {
     errorLine.textContent = msg;
     errorLine.hidden = false;
     setState('error');
   }
 
-  function hideError(){ errorLine.hidden = true; }
+  function hideError() {
+    errorLine.hidden = true;
+  }
 
+  // Événement d'Invocations du Formulaire
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
 
     const number = numberInput.value.replace(/[^\d]/g, '');
-    if (number.length < 8){
+    if (number.length < 8) {
       showError("Numéro invalide — inclus l'indicatif pays.");
       return;
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Ouverture…';
+    submitBtn.textContent = 'Invocation…';
     setState('loading');
 
-    try{
+    try {
       const res = await fetch(PAIR_ENDPOINT, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ number })
       });
-      if(!res.ok) throw new Error('bad status');
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Erreur lors de la réponse serveur');
+      }
 
       const data = await res.json();
-      const code = data.code || data.pairingCode || data.pairing_code;
-      if(!code) throw new Error('no code in response');
+      const code = data.code || data.pairingCode;
+      
+      if (!code || !data.sessionToken) {
+        throw new Error('Réponse incomplète du serveur (token/code manquant)');
+      }
 
       currentNumber = number;
+      currentSessionToken = data.sessionToken;
+
+      // Mise à jour interface
       codeDisplay.textContent = code;
       codeZone.hidden = false;
+      stepDescription.textContent = "Saisis le sceau ci-dessous dans ton application WhatsApp.";
       statusText.textContent = 'En attente de confirmation…';
+      submitBtn.hidden = true;
+      numberInput.readOnly = true;
+
       setState('pending');
       startPolling();
       startPendingTimeout();
-    }catch(err){
-      showError('Impossible de générer le code. Réessaie.');
+
+    } catch (err) {
+      showError(err.message || 'Impossible de générer le code. Réessaie.');
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Ouvrir le Gate';
+      submitBtn.textContent = 'Ouvrir Le Gate';
     }
   });
 
-  function startPolling(){
+  // Polling du statut sécurisé par le SessionToken
+  function startPolling() {
     clearInterval(pollTimer);
     let failCount = 0;
+
     pollTimer = setInterval(async () => {
-      try{
-        const res = await fetch(`${STATUS_ENDPOINT}?number=${encodeURIComponent(currentNumber)}`);
-        if(!res.ok) throw new Error('status not ok');
+      try {
+        const url = `${STATUS_ENDPOINT}?number=${encodeURIComponent(currentNumber)}&token=${encodeURIComponent(currentSessionToken)}`;
+        const res = await fetch(url);
+        
+        if (!res.ok) throw new Error('Échec de statut');
         const data = await res.json();
         failCount = 0;
 
-        if(data.connected){
-          // ✅ On ne coupe l'intervalle QUE si la clé est bien arrivée
-          if(data.apiKey) {
+        if (data.connected) {
+          if (data.apiKey) {
+            // Reçu de la Clé de Session
             clearInterval(pollTimer);
             clearTimeout(timeoutTimer);
             setState('connected');
-            statusText.textContent = 'Connecté.';
+            statusText.textContent = 'Accès accordé.';
 
-            document.getElementById('apiKeyValue').value = data.apiKey;
+            // Affichage dans le modal
+            apiKeyValue.value = data.apiKey;
+            keyModal.classList.add('active');
 
-            // Logique de copie
-            document.getElementById('copyBtn').addEventListener('click', () => {
-              const apiInput = document.getElementById('apiKeyValue');
-              apiInput.select();
-              document.execCommand('copy');
-
-              const btn = document.getElementById('copyBtn');
-              btn.textContent = 'COPIÉ !';
-              btn.style.color = 'var(--ember)';
-
-              setTimeout(() => {
-                btn.textContent = 'COPIER LA CLÉ';
-                btn.style.color = 'var(--ash)';
-              }, 2000);
-            });
           } else {
-            // Connecté côté WhatsApp, mais le fichier creds.json n'est pas encore prêt
             statusText.textContent = 'Génération de la clé en cours...';
           }
         }
-      }catch(err){
+      } catch (err) {
         failCount++;
-        if(failCount >= 5){
+        if (failCount >= 5) {
           clearInterval(pollTimer);
           showError('Connexion au serveur perdue. Recharge la page.');
         }
@@ -486,14 +587,34 @@
     }, 3000);
   }
 
-  function startPendingTimeout(){
+  // Timeout d'expiration
+  function startPendingTimeout() {
     clearTimeout(timeoutTimer);
     timeoutTimer = setTimeout(() => {
-      if(scene.dataset.state === 'pending'){
-        statusText.textContent = 'Toujours en attente… le code a peut-être expiré, relance si besoin.';
+      if (scene.dataset.state === 'pending') {
+        statusText.textContent = 'Le code a expiré. Rafraîchis la page pour réessayer.';
       }
-    }, 90000);
+    }, 180000); // 3 min
   }
+
+  // Copie de la Clé de Session
+  copyBtn.addEventListener('click', () => {
+    apiKeyValue.select();
+    navigator.clipboard.writeText(apiKeyValue.value).then(() => {
+      copyBtn.textContent = 'Clé Copiée !';
+      copyBtn.style.borderColor = 'var(--ember)';
+      copyBtn.style.color = 'var(--ember)';
+
+      setTimeout(() => {
+        copyBtn.textContent = 'Copier La Clé De Session';
+        copyBtn.style.borderColor = 'var(--border-gold)';
+        copyBtn.style.color = 'var(--gold)';
+      }, 2500);
+    }).catch(() => {
+      document.execCommand('copy');
+      copyBtn.textContent = 'Clé Copiée !';
+    });
+  });
 </script>
 </body>
 </html>
