@@ -128,9 +128,16 @@ async function startSession(number, res = null, retryCount = 0, token = null) {
           if (retryCount < MAX_RETRIES) {
             const delay = Math.min(3000 * Math.pow(2, retryCount), 30000);
             console.log(`[GATE] Reconnexion automatique pour ${number} dans ${delay}ms (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
+            
             setTimeout(() => {
+              // VÉRIFICATION DE SÉCURITÉ : Empêche la reconnexion si la session a été volontairement détruite (auto-destruction ou route DELETE)
+              if (!activeSessions.has(number)) {
+                console.log(`[GATE] 🛑 Session ${number} détruite, annulation de la reconnexion fantôme.`);
+                return;
+              }
               startSession(number, null, retryCount + 1, token);
             }, delay);
+            
           } else {
             session.status = 'failed';
             activeSessions.delete(number);
