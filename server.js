@@ -128,16 +128,9 @@ async function startSession(number, res = null, retryCount = 0, token = null) {
           if (retryCount < MAX_RETRIES) {
             const delay = Math.min(3000 * Math.pow(2, retryCount), 30000);
             console.log(`[GATE] Reconnexion automatique pour ${number} dans ${delay}ms (Tentative ${retryCount + 1}/${MAX_RETRIES})...`);
-            
             setTimeout(() => {
-              // VÉRIFICATION DE SÉCURITÉ : Empêche la reconnexion si la session a été volontairement détruite (auto-destruction ou route DELETE)
-              if (!activeSessions.has(number)) {
-                console.log(`[GATE] 🛑 Session ${number} détruite, annulation de la reconnexion fantôme.`);
-                return;
-              }
               startSession(number, null, retryCount + 1, token);
             }, delay);
-            
           } else {
             session.status = 'failed';
             activeSessions.delete(number);
@@ -254,20 +247,20 @@ app.get('/api/status', (req, res) => {
     }
   }
 
-  // Auto-destruction : une fois la clé livrée avec succès, on ferme et purge la
-  // session côté Gate. Personne (pas même le propriétaire) ne peut la relire deux fois.
+  // Auto-destruction : AVANT de livrer la clé, on ferme et purge la session côté Gate.
+  // Ça évite une connexion simultanée avec Gilgamesh qui va utiliser la même clé.
+  // Gate disparaît complètement après ça — il n'existe plus pour ce numéro.
   if (apiKey) {
     pairingTokens.delete(number);
-    setTimeout(() => {
-      const s = activeSessions.get(number);
-      if (s?.sock) { try { s.sock.end(undefined); } catch (e) {} }
-      activeSessions.delete(number);
-      const purgePath = `./sessions/${number}`;
-      if (fs.existsSync(purgePath)) {
-        fs.rmSync(purgePath, { recursive: true, force: true });
-      }
-      console.log(`[GATE] 🔥 Auto-destruction de la session ${number} après livraison de la clé.`);
-    }, 1500);
+    // Tuer d'abord
+    const s = activeSessions.get(number);
+    if (s?.sock) { try { s.sock.end(undefined); } catch (e) {} }
+    activeSessions.delete(number);
+    const purgePath = `./sessions/${number}`;
+    if (fs.existsSync(purgePath)) {
+      fs.rmSync(purgePath, { recursive: true, force: true });
+    }
+    console.log(`[GATE] 🔥 Session ${number} tuée avant livraison de la clé — Gate disparaît.`);
   }
 
   res.json({
