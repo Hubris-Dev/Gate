@@ -2,619 +2,658 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>GATE — Infernum Entreprise</title>
-<meta name="description" content="GATE — Interface rituelle d'accès à l'infrastructure d'Infernum Entreprise.">
+<meta name="description" content="GATE — connecte ton numéro WhatsApp à l'infrastructure d'Infernum Entreprise.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Manrope:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --abyss: #070605;
-    --void: #0d0b09;
-    --surface: #14110e;
-    --marble: #ece6da;
-    --ash: #8e8578;
-    --gold: #d4af37;
-    --gold-glow: rgba(212, 175, 55, 0.25);
-    --blood: #991b1b;
-    --ember: #ea580c;
-    --border-gold: rgba(212, 175, 55, 0.22);
-    --border-subtle: rgba(236, 230, 218, 0.08);
+  :root{
+    --abyss:#0c0a08;
+    --abyss-2:#17130d;
+    --abyss-3:#1f1911;
+    --marble:#e9e4d8;
+    --ash:#948a7d;
+    --ash-dim:#5c5548;
+    --gold:#c9a24a;
+    --gold-soft:#e0bd72;
+    --blood:#8c1f2b;
+    --ember:#e2622f;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--abyss); color: var(--marble); font-family: 'Manrope', sans-serif; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  [hidden]{ display:none !important; }
 
-  /* Background Ambient Layers */
-  .bg-layer { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
-  
-  .vignette {
-    background: radial-gradient(circle at 50% 30%, rgba(20, 17, 14, 0.4) 0%, var(--abyss) 85%);
+  body{
+    background:var(--abyss);
+    color:var(--marble);
+    font-family:'Manrope', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
 
-  .glow-orb {
-    position: absolute;
-    top: 20%;
-    left: 50%;
-    width: 650px;
-    height: 650px;
-    transform: translate(-50%, -20%);
-    background: radial-gradient(circle, var(--gold-glow) 0%, rgba(0,0,0,0) 70%);
-    filter: blur(40px);
-    opacity: 0.7;
-    transition: opacity 1s ease;
+  ::selection{ background:rgba(201,162,74,0.3); color:var(--marble); }
+
+  /* ── Grain — casse le noir plat, donne du grain filmique ── */
+  .grain{
+    position:fixed; inset:0; z-index:80; pointer-events:none;
+    opacity:0.045; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  /* Animated Embers */
-  .embers span {
-    position: absolute;
-    bottom: -10px;
-    width: 2px; height: 2px;
-    border-radius: 50%;
-    background: var(--gold);
-    box-shadow: 0 0 6px var(--gold);
-    opacity: 0;
-    animation: rise linear infinite;
+  /* ── Glows superposés — profondeur plutôt qu'un seul halo plat ── */
+  .glow{ position:fixed; pointer-events:none; z-index:0; border-radius:50%; }
+  .glow-gold{
+    top:8%; left:50%; width:560px; height:560px; transform:translateX(-50%);
+    background:radial-gradient(circle, rgba(201,162,74,0.16) 0%, rgba(201,162,74,0) 70%);
   }
-  .embers span:nth-child(1){ left:10%; animation-delay:0s; animation-duration:12s; }
-  .embers span:nth-child(2){ left:25%; animation-delay:3s; animation-duration:9s; }
-  .embers span:nth-child(3){ left:45%; animation-delay:1.5s; animation-duration:14s; }
-  .embers span:nth-child(4){ left:60%; animation-delay:4s; animation-duration:11s; }
-  .embers span:nth-child(5){ left:78%; animation-delay:2s; animation-duration:10s; }
-  .embers span:nth-child(6){ left:90%; animation-delay:5s; animation-duration:13s; }
-
-  @keyframes rise {
-    0% { transform: translateY(0) scale(1); opacity: 0; }
-    20% { opacity: 0.6; }
-    80% { opacity: 0.3; }
-    100% { transform: translateY(-105vh) scale(0.2); opacity: 0; }
+  .glow-ember{
+    bottom:-10%; left:20%; width:480px; height:480px;
+    background:radial-gradient(circle, rgba(140,31,43,0.14) 0%, rgba(140,31,43,0) 70%);
+  }
+  .glow.small{ width:360px; height:360px; top:2%; }
+  .vignette{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0,0,0,0.55) 100%);
   }
 
-  /* Main Scene Container */
-  .scene {
-    position: relative;
-    z-index: 1;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: 40px 24px;
+  .embers{ position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+  .embers span{
+    position:absolute; bottom:-10px; width:3px; height:3px; border-radius:50%;
+    background:var(--gold); opacity:0; animation:rise linear infinite;
+  }
+  .embers span:nth-child(1){ left:6%;  animation-delay:0s;   animation-duration:11s; }
+  .embers span:nth-child(2){ left:16%; animation-delay:2s;   animation-duration:9s;  }
+  .embers span:nth-child(3){ left:28%; animation-delay:4.5s; animation-duration:13s; }
+  .embers span:nth-child(4){ left:41%; animation-delay:1s;   animation-duration:10s; }
+  .embers span:nth-child(5){ left:57%; animation-delay:3.5s; animation-duration:12s; }
+  .embers span:nth-child(6){ left:69%; animation-delay:0.5s; animation-duration:9.5s;}
+  .embers span:nth-child(7){ left:82%; animation-delay:2.8s; animation-duration:11.5s;}
+  .embers span:nth-child(8){ left:92%; animation-delay:5s;   animation-duration:10.5s;}
+  @keyframes rise{
+    0%{ transform:translateY(0) scale(1); opacity:0; }
+    12%{ opacity:0.55; } 88%{ opacity:0.2; }
+    100%{ transform:translateY(-100vh) scale(0.3); opacity:0; }
   }
 
-  header.brand {
-    text-align: center;
-    margin-bottom: 20px;
+  .eyebrow{
+    position:relative; z-index:1; font-size:11px; letter-spacing:0.32em;
+    color:var(--ash); text-transform:uppercase; font-weight:600;
   }
 
-  .eyebrow {
-    font-size: 11px;
-    letter-spacing: 0.38em;
-    color: var(--ash);
-    text-transform: uppercase;
-    font-weight: 600;
+  .wordmark{
+    font-family:'Cinzel', serif; font-weight:700;
+    letter-spacing:0.14em; color:var(--marble);
   }
 
-  /* Content Cards / Views */
-  .view-container {
-    width: 100%;
-    max-width: 440px;
-    margin: auto 0;
-    position: relative;
+  /* ══════════════ SCREEN 1 — SEUIL (landing) ══════════════ */
+  .screen{
+    position:relative; min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:32px 20px; text-align:center;
+    transition:opacity 600ms cubic-bezier(.4,0,.2,1), transform 600ms cubic-bezier(.4,0,.2,1);
+  }
+  .threshold-screen{ gap:0; }
+  .threshold-screen.leaving{ opacity:0; transform:scale(0.97); pointer-events:none; }
+
+  .threshold-content{ position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; }
+
+  .seal-trigger{
+    background:none; border:none; cursor:pointer; padding:0; margin:30px 0 26px;
+    width:168px; height:168px; position:relative;
+    transition:transform 400ms cubic-bezier(.4,0,.2,1);
+  }
+  .seal-trigger:hover{ transform:scale(1.035); }
+  .seal-trigger:focus-visible{ outline:2px solid var(--gold); outline-offset:8px; border-radius:50%; }
+  .seal-trigger:active{ transform:scale(0.98); }
+
+  .hero-seal{ width:100%; height:100%; }
+  .hero-seal .ring{ fill:none; stroke:var(--ash-dim); stroke-width:1; }
+  .hero-seal .tick{ stroke:var(--ash-dim); stroke-width:1; opacity:0.7; }
+  .hero-seal .arch{
+    fill:none; stroke:var(--gold); stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 0 8px rgba(201,162,74,0.45));
+  }
+  .hero-seal .crack{
+    fill:none; stroke:var(--gold-soft); stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+    opacity:0.55; animation:breatheCrack 3.2s ease-in-out infinite;
+  }
+  @keyframes breatheCrack{ 0%,100%{ opacity:0.4; } 50%{ opacity:0.85; } }
+
+  .seal-trigger.breaking .hero-seal .crack{
+    opacity:1; stroke:var(--ember); stroke-width:2.4;
+    filter:drop-shadow(0 0 14px rgba(226,98,47,0.9));
+    animation:none;
+  }
+  .seal-trigger.breaking .hero-seal .arch{ filter:drop-shadow(0 0 18px rgba(201,162,74,0.9)); }
+  .seal-trigger.breaking::after{
+    content:""; position:absolute; inset:-30%; border-radius:50%;
+    background:radial-gradient(circle, rgba(226,98,47,0.35), transparent 65%);
+    animation:flashOut 700ms ease-out forwards;
+  }
+  @keyframes flashOut{ 0%{ opacity:0; transform:scale(0.6); } 40%{ opacity:1; } 100%{ opacity:0; transform:scale(1.4); } }
+
+  .threshold-content .wordmark{ font-size:clamp(2.8rem, 10vw, 4.2rem); }
+  .tagline{
+    margin-top:16px; font-style:italic; color:var(--ash); font-size:16px;
+    line-height:1.55; max-width:300px;
+  }
+  .cta-hint{
+    margin-top:34px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;
+    color:var(--ash-dim);
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .cta-hint{ animation:hintPulse 2.6s ease-in-out infinite; }
+  }
+  @keyframes hintPulse{ 0%,100%{ opacity:0.5; } 50%{ opacity:1; } }
+
+  /* ══════════════ SCREEN 2 — LE PASSAGE ══════════════ */
+  .passage-screen{ opacity:0; }
+  .passage-screen.visible{ opacity:1; }
+
+  .passage-header{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; }
+  .mini-seal{ width:64px; height:64px; margin-bottom:18px; }
+  .mini-seal svg{ width:100%; height:100%; }
+  .mini-seal .arch{
+    fill:none; stroke:var(--marble); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;
+    transition:stroke 0.7s ease, filter 0.7s ease;
+  }
+  .mini-seal .crack{
+    fill:none; stroke:var(--blood); stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    opacity:0; transition:opacity 0.7s ease, stroke 0.7s ease, filter 0.7s ease;
+  }
+  [data-state="loading"] .mini-seal{ animation:breathe 1.5s ease-in-out infinite; }
+  [data-state="loading"] .mini-seal .arch{ stroke:var(--gold); }
+  [data-state="pending"] .mini-seal .arch{ stroke:var(--gold); filter:drop-shadow(0 0 6px rgba(201,162,74,0.55)); }
+  [data-state="pending"] .mini-seal .crack{ opacity:0.8; stroke:var(--gold); animation:crackPulse 2.4s ease-in-out infinite; }
+  [data-state="connected"] .mini-seal .arch{ stroke:var(--gold); filter:drop-shadow(0 0 11px rgba(201,162,74,0.85)); }
+  [data-state="connected"] .mini-seal .crack{ opacity:1; stroke:var(--ember); filter:drop-shadow(0 0 9px rgba(226,98,47,0.8)); animation:none; }
+  [data-state="error"] .mini-seal .arch, [data-state="error"] .mini-seal .crack{
+    stroke:var(--blood); opacity:1; animation:flash 0.35s ease-in-out 2;
+  }
+  @keyframes breathe{ 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
+  @keyframes crackPulse{ 0%,100%{ opacity:0.55; } 50%{ opacity:1; } }
+  @keyframes flash{ 0%,100%{ opacity:1; } 50%{ opacity:0.25; } }
+
+  .passage-header .wordmark{ font-size:1.7rem; }
+
+  .passage-panel{
+    position:relative; z-index:1; margin-top:36px; width:100%; max-width:400px;
+    padding:28px 26px 30px; border-radius:3px;
+    background:linear-gradient(180deg, rgba(233,228,216,0.035), rgba(233,228,216,0));
+    border:1px solid rgba(201,162,74,0.16);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.02), 0 24px 60px -30px rgba(0,0,0,0.8);
   }
 
-  .card {
-    background: rgba(13, 11, 9, 0.65);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--border-subtle);
-    border-radius: 4px;
-    padding: 40px 32px;
-    text-align: center;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  .field-label{
+    display:block; font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase;
+    color:var(--ash); margin-bottom:9px; text-align:left;
   }
 
-  /* Stage Sigil / Seal */
-  .seal-wrapper {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 28px;
-    position: relative;
+  .pair-form{ display:flex; flex-direction:column; gap:8px; width:100%; }
+
+  .input-wrap{ position:relative; }
+  .pair-form input{
+    background:rgba(0,0,0,0.2); border:1px solid rgba(233,228,216,0.18); border-radius:2px;
+    padding:14px 16px; color:var(--marble); font-family:'Space Mono', monospace; font-size:15px;
+    letter-spacing:0.03em; width:100%; transition:border-color 0.3s ease, background 0.3s ease;
+  }
+  .pair-form input::placeholder{ color:rgba(233,228,216,0.3); }
+  .pair-form input:hover{ border-color:rgba(233,228,216,0.3); }
+  .pair-form input:focus-visible{ outline:none; border-color:var(--gold); background:rgba(201,162,74,0.05); }
+  .input-underline{
+    position:absolute; bottom:0; left:0; height:1px; width:0; background:var(--gold);
+    transition:width 0.35s cubic-bezier(.4,0,.2,1);
+  }
+  .pair-form input:focus-visible ~ .input-underline{ width:100%; }
+
+  .btn{
+    position:relative; overflow:hidden; background:transparent; border:1px solid var(--gold);
+    color:var(--gold); font-family:'Manrope', sans-serif; font-weight:600; font-size:13px;
+    letter-spacing:0.18em; text-transform:uppercase; padding:15px 16px; border-radius:2px;
+    cursor:pointer; margin-top:10px;
+    transition:background 0.3s ease, color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+  }
+  .btn::after{
+    content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+    background:linear-gradient(120deg, transparent, rgba(255,255,255,0.28), transparent);
+    transform:skewX(-20deg); transition:left 0.6s ease;
+  }
+  .btn:hover:not(:disabled){
+    background:var(--gold); color:var(--abyss);
+    box-shadow:0 6px 24px -8px rgba(201,162,74,0.55); transform:translateY(-1px);
+  }
+  .btn:hover:not(:disabled)::after{ left:130%; }
+  .btn:active:not(:disabled){ transform:translateY(0); }
+  .btn:focus-visible{ outline:2px solid var(--gold); outline-offset:3px; }
+  .btn:disabled{ opacity:0.5; cursor:default; }
+
+  .code-zone{ margin-top:8px; width:100%; }
+  .code-zone > *{ opacity:0; transform:translateY(8px); animation:stagger 500ms cubic-bezier(.4,0,.2,1) forwards; }
+  .code-zone > *:nth-child(1){ animation-delay:0ms; }
+  .code-zone > *:nth-child(2){ animation-delay:90ms; }
+  .code-zone > *:nth-child(3){ animation-delay:180ms; }
+  .code-zone > *:nth-child(4){ animation-delay:270ms; }
+  @keyframes stagger{ to{ opacity:1; transform:translateY(0); } }
+
+  .code-display{
+    font-family:'Space Mono', monospace; font-weight:700; font-size:clamp(1.7rem, 6vw, 2.3rem);
+    letter-spacing:0.14em; color:var(--gold); text-shadow:0 0 18px rgba(201,162,74,0.4);
+    padding:14px 0 4px;
   }
 
-  .seal-svg { width: 100%; height: 100%; overflow: visible; }
-  
-  .seal-svg .arch {
-    fill: none;
-    stroke: var(--marble);
-    stroke-width: 2.2;
-    stroke-linecap: round;
-    transition: stroke 0.8s ease, filter 0.8s ease;
+  .instructions{ margin-top:4px; font-size:13px; color:var(--ash); line-height:1.6; }
+
+  .status-row{
+    margin-top:20px; display:flex; align-items:center; justify-content:center; gap:9px;
+    font-size:13px; color:var(--ash);
+  }
+  .status-dot{
+    width:8px; height:8px; border-radius:50%; background:var(--gold);
+    animation:dotPulse 1.5s ease-in-out infinite;
+  }
+  [data-state="connected"] .status-dot{ background:var(--ember); animation:none; }
+  @keyframes dotPulse{
+    0%,100%{ opacity:1; box-shadow:0 0 0 0 rgba(201,162,74,0.45); }
+    50%{ opacity:0.45; box-shadow:0 0 0 6px rgba(201,162,74,0); }
   }
 
-  .seal-svg .crack {
-    fill: none;
-    stroke: var(--blood);
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    opacity: 0;
-    transition: opacity 0.8s ease, stroke 0.8s ease, filter 0.8s ease;
+  .error-line{
+    margin-top:16px; color:var(--blood); font-size:13px; line-height:1.5;
+    border-left:2px solid var(--blood); padding-left:10px; text-align:left;
   }
 
-  /* State Animating Sigils */
-  [data-state="loading"] .arch { stroke: var(--gold); filter: drop-shadow(0 0 8px var(--gold-glow)); }
-  [data-state="loading"] .seal-wrapper { animation: pulse 2s ease-in-out infinite; }
+  .restart-link{
+    display:block; margin:26px auto 0; background:none; border:none; cursor:pointer;
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--ash-dim);
+    transition:color 0.25s ease;
+  }
+  .restart-link:hover{ color:var(--gold); }
 
-  [data-state="pending"] .arch { stroke: var(--gold); filter: drop-shadow(0 0 10px rgba(212,175,55,0.4)); }
-  [data-state="pending"] .crack { opacity: 0.85; stroke: var(--gold); animation: crackGlow 2s ease-in-out infinite; }
-
-  [data-state="connected"] .arch { stroke: var(--gold); filter: drop-shadow(0 0 15px rgba(212,175,55,0.8)); }
-  [data-state="connected"] .crack { opacity: 1; stroke: var(--ember); filter: drop-shadow(0 0 12px var(--ember)); }
-
-  [data-state="error"] .arch, [data-state="error"] .crack { stroke: var(--blood); opacity: 1; animation: errorShake 0.4s ease; }
-
-  @keyframes pulse { 0%,100%{ opacity: 1; } 50%{ opacity: 0.4; } }
-  @keyframes crackGlow { 0%,100%{ opacity: 0.5; } 50%{ opacity: 1; } }
-  @keyframes errorShake { 0%,100%{ transform: translateX(0); } 25%{ transform: translateX(-4px); } 75%{ transform: translateX(4px); } }
-
-  /* Typography */
-  h1.title {
-    font-family: 'Cinzel', serif;
-    font-weight: 700;
-    font-size: clamp(2.2rem, 7vw, 3rem);
-    letter-spacing: 0.16em;
-    color: var(--marble);
-    text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+  footer.signature{
+    position:relative; z-index:1; font-size:10px; letter-spacing:0.28em; text-transform:uppercase;
+    color:var(--ash); opacity:0.6; padding:26px 0 8px; text-align:center;
   }
 
-  .description {
-    margin-top: 14px;
-    color: var(--ash);
-    font-size: 14px;
-    line-height: 1.6;
-    font-weight: 400;
+  /* ══════════════ MODAL — LA CLÉ ══════════════ */
+  .modal-backdrop{
+    position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center;
+    padding:20px; background:rgba(6,5,4,0.72); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    opacity:0; transition:opacity 400ms ease;
+  }
+  .modal-backdrop.visible{ opacity:1; }
+
+  .modal-card{
+    position:relative; width:100%; max-width:400px; padding:38px 30px 30px; text-align:center;
+    background:linear-gradient(180deg, var(--abyss-3), var(--abyss-2));
+    border:1px solid rgba(201,162,74,0.35); border-radius:3px;
+    box-shadow:0 40px 100px -30px rgba(0,0,0,0.9), 0 0 60px -20px rgba(201,162,74,0.25);
+    transform:translateY(16px) scale(0.97); opacity:0;
+    transition:transform 450ms cubic-bezier(.16,1,.3,1), opacity 350ms ease;
+  }
+  .modal-backdrop.visible .modal-card{ transform:translateY(0) scale(1); opacity:1; }
+
+  .modal-seal{ width:56px; height:56px; margin:0 auto 18px; }
+  .modal-seal svg{ width:100%; height:100%; }
+  .modal-seal .arch{
+    fill:none; stroke:var(--gold); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 0 12px rgba(201,162,74,0.8));
+  }
+  .modal-seal .crack{
+    fill:none; stroke:var(--ember); stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+    filter:drop-shadow(0 0 9px rgba(226,98,47,0.8));
   }
 
-  /* Form & Interactive Elements */
-  .form-group {
-    margin-top: 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+  .modal-card h3{ font-family:'Cinzel', serif; font-size:20px; letter-spacing:0.04em; color:var(--marble); }
+  .modal-copy{ margin-top:10px; font-size:14px; color:var(--ash); line-height:1.55; }
+
+  .key-box{
+    margin-top:22px; background:rgba(0,0,0,0.3); border:1px solid rgba(201,162,74,0.3); border-radius:2px;
+    padding:14px; font-family:'Space Mono', monospace; font-size:11.5px; line-height:1.6; color:var(--gold-soft);
+    max-height:110px; overflow-y:auto; word-break:break-all; text-align:left; cursor:pointer;
+    transition:border-color 0.25s ease;
+  }
+  .key-box:hover{ border-color:var(--gold); }
+  .key-box:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+  .copy-btn-modal{
+    margin-top:16px; width:100%; background:var(--gold); color:var(--abyss); border:1px solid var(--gold);
+    font-family:'Manrope', sans-serif; font-weight:700; font-size:12.5px; letter-spacing:0.16em;
+    text-transform:uppercase; padding:14px; border-radius:2px; cursor:pointer;
+    transition:background 0.25s ease, transform 0.15s ease;
+  }
+  .copy-btn-modal:hover{ background:var(--gold-soft); }
+  .copy-btn-modal:active{ transform:translateY(1px); }
+  .copy-btn-modal.copied{ background:var(--ember); border-color:var(--ember); color:var(--marble); }
+
+  .modal-footnote{ margin-top:18px; font-size:12px; font-style:italic; color:var(--ash-dim); line-height:1.5; }
+
+  .close-link{
+    margin-top:20px; background:none; border:none; cursor:pointer; color:var(--ash);
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase; transition:color 0.25s ease;
+  }
+  .close-link:hover{ color:var(--marble); }
+
+  @media (max-width:420px){
+    .modal-card{ padding:30px 22px 24px; }
   }
 
-  .input-wrapper {
-    position: relative;
-    width: 100%;
+  @media (prefers-reduced-motion: reduce){
+    .embers span, .cta-hint, .hero-seal .crack, [data-state="loading"] .mini-seal,
+    [data-state="pending"] .mini-seal .crack, .status-dot{ animation:none !important; }
+    .screen, .seal-trigger, .btn, .btn::after, .modal-backdrop, .modal-card, .code-zone > *{
+      transition:opacity 200ms linear !important; animation:none !important;
+      transform:none !important; opacity:1 !important;
+    }
+    .passage-screen{ opacity:1; }
   }
-
-  input[type="tel"] {
-    width: 100%;
-    background: rgba(7, 6, 5, 0.6);
-    border: 1px solid var(--border-subtle);
-    border-radius: 2px;
-    padding: 16px;
-    color: var(--marble);
-    font-family: 'Space Mono', monospace;
-    font-size: 15px;
-    text-align: center;
-    letter-spacing: 0.08em;
-    transition: all 0.3s ease;
-  }
-
-  input[type="tel"]::placeholder { color: rgba(142, 133, 120, 0.4); }
-  
-  input[type="tel"]:focus {
-    outline: none;
-    border-color: var(--gold);
-    box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
-    background: rgba(13, 11, 9, 0.8);
-  }
-
-  .btn-primary {
-    background: transparent;
-    border: 1px solid var(--border-gold);
-    color: var(--gold);
-    font-family: 'Manrope', sans-serif;
-    font-weight: 600;
-    font-size: 12px;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    padding: 16px 20px;
-    border-radius: 2px;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .btn-primary:hover:not(:disabled) {
-    background: var(--gold);
-    color: var(--abyss);
-    box-shadow: 0 0 25px rgba(212, 175, 55, 0.4);
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  /* Code Section */
-  .code-zone {
-    margin-top: 28px;
-    padding-top: 24px;
-    border-top: 1px dashed var(--border-subtle);
-  }
-
-  .code-label {
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--ash);
-  }
-
-  .code-display {
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    font-size: clamp(1.8rem, 6vw, 2.4rem);
-    letter-spacing: 0.16em;
-    color: var(--gold);
-    margin: 12px 0;
-    text-shadow: 0 0 20px rgba(212, 175, 55, 0.35);
-  }
-
-  .instructions {
-    font-size: 12px;
-    color: var(--ash);
-    line-height: 1.5;
-  }
-
-  /* Status Indicator */
-  .status-bar {
-    margin-top: 24px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--ash);
-    background: rgba(255,255,255,0.02);
-    padding: 6px 14px;
-    border-radius: 20px;
-    border: 1px solid var(--border-subtle);
-  }
-
-  .status-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--gold);
-    animation: statusPulse 1.8s ease-in-out infinite;
-  }
-
-  @keyframes statusPulse {
-    0%,100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(0.8); }
-  }
-
-  .error-message {
-    margin-top: 16px;
-    color: #ef4444;
-    font-size: 12px;
-    letter-spacing: 0.02em;
-  }
-
-  /* Overlay Modal for Key Delivery */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(7, 6, 5, 0.85);
-    backdrop-filter: blur(20px);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.5s ease;
-  }
-
-  .modal-overlay.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .modal-card {
-    background: var(--surface);
-    border: 1px solid var(--border-gold);
-    border-radius: 4px;
-    padding: 40px 32px;
-    max-width: 460px;
-    width: 100%;
-    text-align: center;
-    box-shadow: 0 0 60px rgba(212, 175, 55, 0.15);
-    transform: translateY(20px) scale(0.95);
-    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .modal-overlay.active .modal-card {
-    transform: translateY(0) scale(1);
-  }
-
-  .modal-title {
-    font-family: 'Cinzel', serif;
-    font-size: 1.8rem;
-    color: var(--gold);
-    letter-spacing: 0.12em;
-    margin-bottom: 8px;
-  }
-
-  .key-textarea {
-    width: 100%;
-    background: rgba(7, 6, 5, 0.8);
-    border: 1px solid var(--border-subtle);
-    border-radius: 2px;
-    color: var(--marble);
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    padding: 14px;
-    margin: 20px 0 16px;
-    resize: none;
-    word-break: break-all;
-    outline: none;
-  }
-
-  .key-warning {
-    font-size: 11px;
-    color: var(--ember);
-    margin-bottom: 24px;
-    line-height: 1.4;
-  }
-
-  footer.signature {
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--ash);
-    opacity: 0.5;
-  }
-
-  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 
-<div class="bg-layer vignette"></div>
-<div class="bg-layer glow-orb" id="glowOrb"></div>
-<div class="bg-layer embers" aria-hidden="true">
-  <span></span><span></span><span></span><span></span><span></span><span></span>
-</div>
+<div class="grain" aria-hidden="true"></div>
 
-<div class="scene" id="scene" data-state="idle">
-  <header class="brand">
-    <span class="eyebrow">Infernum Entreprise</span>
+<!-- ═══ SCREEN 1 : SEUIL ═══ -->
+<section class="screen threshold-screen" id="threshold">
+  <div class="glow glow-gold" aria-hidden="true"></div>
+  <div class="glow glow-ember" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="embers" aria-hidden="true">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div class="threshold-content">
+    <p class="eyebrow">Infernum Entreprise</p>
+
+    <button class="seal-trigger" id="sealTrigger" aria-label="Franchir le Gate">
+      <svg class="hero-seal" viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring" cx="100" cy="100" r="90"/>
+        <g class="ticks" id="heroTicks"></g>
+        <path class="arch" d="M72,148 L72,92 A28,28 0 0 1 128,92 L128,148"/>
+        <path class="crack" d="M100,58 L93,72 L106,86 L90,100 L103,114 L95,128 L100,138"/>
+      </svg>
+    </button>
+
+    <h1 class="wordmark">GATE</h1>
+    <p class="tagline">La porte ne s'ouvre qu'une fois par nom.</p>
+    <p class="cta-hint">Touche le sceau pour franchir</p>
+  </div>
+</section>
+
+<!-- ═══ SCREEN 2 : LE PASSAGE ═══ -->
+<main class="screen passage-screen" id="passage" data-state="idle" hidden>
+  <div class="glow glow-gold small" aria-hidden="true"></div>
+
+  <header class="passage-header">
+    <div class="mini-seal">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path class="arch" d="M28,78 L28,42 A22,22 0 0 1 72,42 L72,78"/>
+        <path class="crack" d="M50,24 L45,34 L54,44 L44,54 L53,64 L47,74 L50,80"/>
+      </svg>
+    </div>
+    <p class="eyebrow">Infernum Entreprise</p>
+    <h2 class="wordmark">GATE</h2>
   </header>
 
-  <div class="view-container">
-    <!-- Main Form Card -->
-    <main class="card" id="mainCard">
-      <div class="seal-wrapper">
-        <svg class="seal-svg" viewBox="0 0 100 100" aria-hidden="true">
-          <path class="arch" d="M28,78 L28,42 A22,22 0 0 1 72,42 L72,78" />
-          <path class="crack" d="M50,24 L45,34 L54,44 L44,54 L53,64 L47,74 L50,80" />
-        </svg>
+  <div class="passage-panel">
+    <form class="pair-form" id="pairForm">
+      <label class="field-label" for="numberInput">Numéro WhatsApp</label>
+      <div class="input-wrap">
+        <input type="tel" id="numberInput" placeholder="+33 6 12 34 56 78" autocomplete="tel" inputmode="tel" required>
+        <div class="input-underline"></div>
       </div>
+      <button type="submit" class="btn" id="submitBtn"><span>Ouvrir le Gate</span></button>
+    </form>
 
-      <h1 class="title">GATE</h1>
-      <p class="description" id="stepDescription">Invoque l'accès rituel pour sceller ton numéro à l'infrastructure.</p>
-
-      <form class="form-group" id="pairForm">
-        <div class="input-wrapper">
-          <input type="tel" id="numberInput" placeholder="+33 6 12 34 56 78" autocomplete="tel" required>
-        </div>
-        <button type="submit" class="btn-primary" id="submitBtn">Ouvrir Le Gate</button>
-      </form>
-
-      <!-- Code Presentation View -->
-      <div class="code-zone" id="codeZone" hidden>
-        <span class="code-label">Sceau d'Appairage</span>
-        <div class="code-display" id="codeDisplay">— — — —</div>
-        <p class="instructions">WhatsApp → Appareils liés → Lier un appareil → Saisir le code</p>
-        
-        <div class="status-bar">
-          <span class="status-dot"></span>
-          <span id="statusText">En attente de confirmation…</span>
-        </div>
+    <div class="code-zone" id="codeZone" hidden>
+      <span class="field-label">Code de liaison</span>
+      <div class="code-display" id="codeDisplay">— — — —</div>
+      <p class="instructions">WhatsApp → Appareils liés → Lier un appareil → entre ce code</p>
+      <div class="status-row">
+        <span class="status-dot"></span>
+        <span id="statusText">En attente, sur ton téléphone…</span>
       </div>
+    </div>
 
-      <p class="error-message" id="errorLine" hidden></p>
-    </main>
+    <p class="error-line" id="errorLine" hidden></p>
   </div>
 
-  <footer class="signature">Architecturé par HUBRIS</footer>
-</div>
+  <button class="restart-link" id="restartLink" hidden>Ouvrir un nouveau passage</button>
+</main>
 
-<!-- Modal overlay for session key delivery -->
-<div class="modal-overlay" id="keyModal">
-  <div class="modal-card">
-    <h2 class="modal-title">GATE OUVERT</h2>
-    <p class="description">La clé de session a été générée avec succès.</p>
-    
-    <textarea class="key-textarea" id="apiKeyValue" readonly rows="4"></textarea>
+<footer class="signature">Infernum Entreprise — créé par Hubris</footer>
 
-    <p class="key-warning">🔥 **Auto-destruction active** : Cette clé est unique et ne sera plus jamais réaffichée. Copie-la immédiatement.</p>
-
-    <button type="button" class="btn-primary" id="copyBtn" style="width: 100%;">Copier La Clé De Session</button>
+<!-- ═══ MODAL : LA CLÉ ═══ -->
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-seal">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <path class="arch" d="M28,78 L28,42 A22,22 0 0 1 72,42 L72,78"/>
+        <path class="crack" d="M50,24 L45,34 L54,44 L44,54 L53,64 L47,74 L50,80"/>
+      </svg>
+    </div>
+    <h3 id="modalTitle">Le passage est confirmé.</h3>
+    <p class="modal-copy">Cette clé n'apparaîtra qu'une seule fois.</p>
+    <div class="key-box" id="keyBox" tabindex="0"></div>
+    <button class="copy-btn-modal" id="copyBtn">Copier la clé</button>
+    <p class="modal-footnote">Personne d'autre ne peut la voir. Une fois cette fenêtre fermée, la session est détruite.</p>
+    <button class="close-link" id="closeModalBtn">Fermer</button>
   </div>
 </div>
-
-<noscript>JavaScript est requis pour franchir le Gate.</noscript>
 
 <script>
-  // Endpoints API
-  const PAIR_ENDPOINT = '/api/pair';
-  const STATUS_ENDPOINT = '/api/status';
+  // ── Génération du sceau cérémonial (anneau de repères) ──
+  (function buildHeroTicks(){
+    const g = document.getElementById('heroTicks');
+    const ns = 'http://www.w3.org/2000/svg';
+    const cx = 100, cy = 100, r1 = 90, r2 = 82;
+    const count = 40;
+    for (let i = 0; i < count; i++){
+      const angle = (i / count) * Math.PI * 2;
+      const long = i % 5 === 0;
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', cx + Math.cos(angle) * r1);
+      line.setAttribute('y1', cy + Math.sin(angle) * r1);
+      line.setAttribute('x2', cx + Math.cos(angle) * (long ? r2 - 4 : r2));
+      line.setAttribute('y2', cy + Math.sin(angle) * (long ? r2 - 4 : r2));
+      line.setAttribute('class', 'tick');
+      g.appendChild(line);
+    }
+  })();
 
-  // Éléments UI
-  const scene = document.getElementById('scene');
-  const form = document.getElementById('pairForm');
+  // ── Éléments ──
+  const threshold = document.getElementById('threshold');
+  const passage = document.getElementById('passage');
+  const sealTrigger = document.getElementById('sealTrigger');
   const numberInput = document.getElementById('numberInput');
+  const pairForm = document.getElementById('pairForm');
   const submitBtn = document.getElementById('submitBtn');
   const codeZone = document.getElementById('codeZone');
   const codeDisplay = document.getElementById('codeDisplay');
   const statusText = document.getElementById('statusText');
   const errorLine = document.getElementById('errorLine');
-  const stepDescription = document.getElementById('stepDescription');
-  
-  // Modal Éléments
-  const keyModal = document.getElementById('keyModal');
-  const apiKeyValue = document.getElementById('apiKeyValue');
+  const restartLink = document.getElementById('restartLink');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const keyBox = document.getElementById('keyBox');
   const copyBtn = document.getElementById('copyBtn');
+  const closeModalBtn = document.getElementById('closeModalBtn');
 
-  // État local de session
+  let currentNumber = null;
+  let currentToken = null;
   let pollTimer = null;
-  let timeoutTimer = null;
-  let currentNumber = '';
-  let currentSessionToken = '';
+  let pollAttempts = 0;
+  const MAX_POLL_ATTEMPTS = 45;
+  let lastFocused = null;
 
-  function setState(state) {
-    scene.dataset.state = state;
-  }
+  // ── Transition Seuil → Passage ──
+  sealTrigger.addEventListener('click', () => {
+    sealTrigger.classList.add('breaking');
+    sealTrigger.disabled = true;
+    setTimeout(() => {
+      threshold.classList.add('leaving');
+      passage.hidden = false;
+      requestAnimationFrame(() => passage.classList.add('visible'));
+      setTimeout(() => {
+        threshold.hidden = true;
+        numberInput.focus();
+      }, 620);
+    }, 550);
+  });
 
-  function showError(msg) {
-    errorLine.textContent = msg;
-    errorLine.hidden = false;
-    setState('error');
-  }
+  // ── Formatage léger du numéro pendant la saisie ──
+  numberInput.addEventListener('input', (e) => {
+    const hasPlus = e.target.value.trim().startsWith('+');
+    const digits = e.target.value.replace(/\D/g, '');
+    const grouped = digits.match(/.{1,2}/g)?.join(' ') || '';
+    e.target.value = (hasPlus ? '+' : '') + grouped;
+  });
 
-  function hideError() {
-    errorLine.hidden = true;
-  }
+  function setState(s){ passage.dataset.state = s; }
+  function showError(msg){ errorLine.textContent = msg; errorLine.hidden = false; setState('error'); }
+  function hideError(){ errorLine.hidden = true; }
 
-  // Événement d'Invocations du Formulaire
-  form.addEventListener('submit', async (e) => {
+  pairForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
 
-    const number = numberInput.value.replace(/[^\d]/g, '');
-    if (number.length < 8) {
-      showError("Numéro invalide — inclus l'indicatif pays.");
+    const number = numberInput.value.replace(/\D/g, '');
+    if (!/^\d{8,15}$/.test(number)){
+      showError("Ce numéro ne peut pas franchir la porte — format international, 8 à 15 chiffres.");
       return;
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Invocation…';
+    submitBtn.querySelector('span').textContent = 'Ouverture…';
     setState('loading');
 
-    try {
-      const res = await fetch(PAIR_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+    try{
+      const res = await fetch('/api/pair', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ number })
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Erreur lors de la réponse serveur');
-      }
-
       const data = await res.json();
-      const code = data.code || data.pairingCode;
-      
-      if (!code || !data.sessionToken) {
-        throw new Error('Réponse incomplète du serveur (token/code manquant)');
+
+      if (res.status === 429){
+        showError("Trop d'invocations depuis cet endroit. La porte se repose — réessaie dans quelques minutes.");
+        return;
+      }
+      if (!res.ok || !data.code){
+        showError(data.error || "La porte ne s'est pas ouverte. Réessaie.");
+        return;
       }
 
       currentNumber = number;
-      currentSessionToken = data.sessionToken;
-
-      // Mise à jour interface
-      codeDisplay.textContent = code;
+      currentToken = data.sessionToken;
+      codeDisplay.textContent = data.code;
       codeZone.hidden = false;
-      stepDescription.textContent = "Saisis le sceau ci-dessous dans ton application WhatsApp.";
-      statusText.textContent = 'En attente de confirmation…';
-      submitBtn.hidden = true;
-      numberInput.readOnly = true;
-
+      statusText.textContent = 'En attente, sur ton téléphone…';
       setState('pending');
+      pollAttempts = 0;
       startPolling();
-      startPendingTimeout();
-
-    } catch (err) {
-      showError(err.message || 'Impossible de générer le code. Réessaie.');
+    }catch(err){
+      showError('La porte ne répond pas. Vérifie ta connexion et réessaie.');
+    }finally{
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Ouvrir Le Gate';
+      submitBtn.querySelector('span').textContent = 'Ouvrir le Gate';
     }
   });
 
-  // Polling du statut sécurisé par le SessionToken
-  function startPolling() {
+  function startPolling(){
     clearInterval(pollTimer);
-    let failCount = 0;
-
-    pollTimer = setInterval(async () => {
-      try {
-        const url = `${STATUS_ENDPOINT}?number=${encodeURIComponent(currentNumber)}&token=${encodeURIComponent(currentSessionToken)}`;
-        const res = await fetch(url);
-        
-        if (!res.ok) throw new Error('Échec de statut');
-        const data = await res.json();
-        failCount = 0;
-
-        if (data.connected) {
-          if (data.apiKey) {
-            // Reçu de la Clé de Session
-            clearInterval(pollTimer);
-            clearTimeout(timeoutTimer);
-            setState('connected');
-            statusText.textContent = 'Accès accordé.';
-
-            // Affichage dans le modal
-            apiKeyValue.value = data.apiKey;
-            keyModal.classList.add('active');
-
-          } else {
-            statusText.textContent = 'Génération de la clé en cours...';
-          }
-        }
-      } catch (err) {
-        failCount++;
-        if (failCount >= 5) {
-          clearInterval(pollTimer);
-          showError('Connexion au serveur perdue. Recharge la page.');
-        }
-      }
-    }, 3000);
+    pollTimer = setInterval(checkStatus, 4000);
+    checkStatus();
   }
 
-  // Timeout d'expiration
-  function startPendingTimeout() {
-    clearTimeout(timeoutTimer);
-    timeoutTimer = setTimeout(() => {
-      if (scene.dataset.state === 'pending') {
-        statusText.textContent = 'Le code a expiré. Rafraîchis la page pour réessayer.';
+  async function checkStatus(){
+    if (!currentNumber || !currentToken) return;
+    pollAttempts++;
+
+    if (pollAttempts > MAX_POLL_ATTEMPTS){
+      clearInterval(pollTimer);
+      statusText.textContent = "Toujours en attente… le code a peut-être expiré.";
+      return;
+    }
+
+    try{
+      const res = await fetch(`/api/status?number=${currentNumber}&token=${currentToken}`);
+      const data = await res.json();
+
+      if (res.status === 403 || res.status === 410){
+        clearInterval(pollTimer);
+        showError(data.error);
+        return;
       }
-    }, 180000); // 3 min
+
+      if (data.connected && data.apiKey){
+        clearInterval(pollTimer);
+        setState('connected');
+        statusText.textContent = 'Connecté.';
+        openModal(data.apiKey);
+      } else if (data.connected){
+        statusText.textContent = 'Génération de la clé en cours…';
+      }
+    }catch(err){
+      // silencieux — on retente au prochain intervalle
+    }
   }
 
-  // Copie de la Clé de Session
-  copyBtn.addEventListener('click', () => {
-    apiKeyValue.select();
-    navigator.clipboard.writeText(apiKeyValue.value).then(() => {
-      copyBtn.textContent = 'Clé Copiée !';
-      copyBtn.style.borderColor = 'var(--ember)';
-      copyBtn.style.color = 'var(--ember)';
+  // ── Modal ──
+  function openModal(key){
+    keyBox.textContent = key;
+    lastFocused = document.activeElement;
+    modalBackdrop.hidden = false;
+    requestAnimationFrame(() => modalBackdrop.classList.add('visible'));
+    closeModalBtn.focus();
+    document.addEventListener('keydown', onModalKeydown);
+  }
+  function closeModal(){
+    modalBackdrop.classList.remove('visible');
+    setTimeout(() => { modalBackdrop.hidden = true; }, 400);
+    document.removeEventListener('keydown', onModalKeydown);
+    statusText.textContent = 'Clé livrée. Cette page peut être fermée.';
+    restartLink.hidden = false;
+    if (lastFocused) lastFocused.focus();
+  }
+  function onModalKeydown(e){ if (e.key === 'Escape') closeModal(); }
+  closeModalBtn.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
 
-      setTimeout(() => {
-        copyBtn.textContent = 'Copier La Clé De Session';
-        copyBtn.style.borderColor = 'var(--border-gold)';
-        copyBtn.style.color = 'var(--gold)';
-      }, 2500);
-    }).catch(() => {
+  async function copyKey(){
+    const key = keyBox.textContent;
+    if (!key) return;
+    try{
+      await navigator.clipboard.writeText(key);
+    }catch(err){
+      const range = document.createRange();
+      range.selectNodeContents(keyBox);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
       document.execCommand('copy');
-      copyBtn.textContent = 'Clé Copiée !';
-    });
+      sel.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copiée.';
+    copyBtn.classList.add('copied');
+    setTimeout(() => { copyBtn.textContent = 'Copier la clé'; copyBtn.classList.remove('copied'); }, 2200);
+  }
+  copyBtn.addEventListener('click', copyKey);
+  keyBox.addEventListener('click', copyKey);
+  keyBox.addEventListener('keydown', (e) => { if (e.key === 'Enter') copyKey(); });
+
+  restartLink.addEventListener('click', () => {
+    clearInterval(pollTimer);
+    currentNumber = null; currentToken = null; pollAttempts = 0;
+    numberInput.value = '';
+    codeDisplay.textContent = '— — — —';
+    codeZone.hidden = true;
+    restartLink.hidden = true;
+    hideError();
+    setState('idle');
+    numberInput.focus();
   });
 </script>
+
 </body>
 </html>
