@@ -11,6 +11,8 @@ import NodeCache from 'node-cache';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import archiver from 'archiver';
+import { PassThrough } from 'stream';
 
 const app = express();
 app.use(express.json());
@@ -72,6 +74,40 @@ function rateLimitPair(req, res, next) {
   attempts.push(now);
   rateLimitMap.set(ip, attempts);
   next();
+}
+
+// Zippe un dossier de session (creds.json + keys/) et renvoie le zip encodé en base64
+async function zipSessionToBase64(sessionPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      const pass = new PassThrough();
+      const chunks = [];
+
+      pass.on('data', c => chunks.push(c));
+      pass.on('end', () => {
+        try {
+          const buffer = Buffer.concat(chunks);
+          resolve(buffer.toString('base64'));
+        } catch (e) {
+          reject(e);
+        }
+      });
+
+      archive.on('warning', err => {
+        if (err.code === 'ENOENT') console.warn('[GATE] archiver warning:', err.message);
+        else reject(err);
+      });
+      archive.on('error', err => reject(err));
+
+      archive.pipe(pass);
+      // Ajoute tout le contenu du dossier session dans la racine de l'archive
+      archive.directory(sessionPath, false);
+      archive.finalize();
+    } catch (e) {
+      reject(e);
+    }
+  });
 }
 
 // Fonction de gestion de session WhatsApp
@@ -207,7 +243,7 @@ app.post('/api/pair', rateLimitPair, async (req, res) => {
 // Route GET : Vérifier le statut et renvoyer la CLÉ — PUBLIQUE, mais protégée par
 // le sessionToken émis lors du /api/pair. Sans le bon token, un numéro seul ne
 // suffit pas à récupérer une clé qui n'est pas la tienne.
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
   const { number, token } = req.query;
   if (!number || !/^\d{8,15}$/.test(number)) {
     return res.status(400).json({ error: 'Numéro invalide' });
@@ -223,25 +259,28 @@ app.get('/api/status', (req, res) => {
   }
 
   const session = activeSessions.get(number);
-  const credsPath = path.join(process.cwd(), `sessions/${number}/creds.json`);
-  const fileExists = fs.existsSync(credsPath);
+  const sessionPath = path.join(process.cwd(), `sessions/${number}`);
+  const credsPath = path.join(sessionPath, 'creds.json');
 
   let apiKey = null;
+  let format = null;
   let isConnected = session?.status === 'connected';
 
-  // On ne renvoie la clé que si la session est réellement connectée (évite un faux positif sur un vieux creds.json)
-  if (fileExists && isConnected) {
+  // Si le dossier de session existe, on zippe tout le dossier (creds.json + keys/)
+  if (fs.existsSync(sessionPath) && isConnected) {
     try {
-      const credsData = fs.readFileSync(credsPath);
-      apiKey = credsData.toString('base64');
+      apiKey = await zipSessionToBase64(sessionPath);
+      format = 'zip';
     } catch (e) {
-      console.error(`[GATE] Erreur lors de la lecture de creds.json pour ${number}:`, e.message);
+      console.error(`[GATE] Erreur lors du zippage de la session ${number}:`, e.message);
     }
   } else if (isConnected && session.sock?.authState?.creds) {
+    // Filet de secours : dossier absent (cas dégradé), on livre seulement les creds en mémoire
     try {
-      console.log(`[GATE] ⚡ Clé récupérée directement en mémoire vive pour ${number}`);
+      console.warn(`[GATE] ⚠️ Dossier de session absent pour ${number} — livraison creds seuls (sans keys/), cas dégradé.`);
       const credsJSON = JSON.stringify(session.sock.authState.creds);
       apiKey = Buffer.from(credsJSON).toString('base64');
+      format = 'creds-only';
     } catch (e) {
       console.error(`[GATE] Erreur lors de la sérialisation mémoire de creds pour ${number}:`, e.message);
     }
@@ -266,7 +305,8 @@ app.get('/api/status', (req, res) => {
   res.json({
     connected: isConnected,
     status: isConnected ? 'connected' : (session?.status || 'unknown'),
-    apiKey: apiKey
+    apiKey: apiKey,
+    format: format
   });
 });
 
