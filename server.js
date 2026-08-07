@@ -5,7 +5,7 @@ import makeWASocket, {
   fetchLatestBaileysVersion,
   DisconnectReason
 } from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
+import Boom from '@hapi/boom';
 import pino from 'pino';
 import NodeCache from 'node-cache';
 import fs from 'fs';
@@ -27,6 +27,22 @@ const activeSessions = new Map();
 // Sans ça, n'importe qui connaissant un numéro pourrait voler sa session.
 const pairingTokens = new Map(); // number -> { token, expiresAt }
 const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 min pour compléter le pairing
+
+// Nettoyage périodique des tokens expirés pour éviter une fuite mémoire
+const TOKEN_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // toutes les 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [number, pairing] of pairingTokens) {
+    if (now > pairing.expiresAt) {
+      pairingTokens.delete(number);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    console.log(`[GATE] 🧹 Nettoyage automatique : ${cleaned} token(s) expiré(s) supprimé(s).`);
+  }
+}, TOKEN_CLEANUP_INTERVAL_MS);
 
 // Rate limit basique par IP sur /api/pair, pour empêcher qu'on spam/tue
 // la session d'un numéro qui n'est pas le sien.
@@ -111,6 +127,7 @@ async function zipSessionToBase64(sessionPath) {
 }
 
 // Fonction de gestion de session WhatsApp
+// Retourne une promesse qui se résout quand le pairing code est prêt ou que la connexion est établie
 async function startSession(number, res = null, retryCount = 0, token = null) {
   const sessionPath = `./sessions/${number}`;
   try {
@@ -136,7 +153,7 @@ async function startSession(number, res = null, retryCount = 0, token = null) {
 
     sock.ev.on('creds.update', saveCreds);
 
-    const session = { sock, status: 'pending', reason: null };
+    const session = { sock, status: 'pending', reason: null, pairingCodeSent: false };
     activeSessions.set(number, session);
 
     sock.ev.on('connection.update', (update) => {
@@ -148,7 +165,7 @@ async function startSession(number, res = null, retryCount = 0, token = null) {
       }
 
       if (connection === 'close') {
-        const statusCode = lastDisconnect?.error instanceof Boom
+        const statusCode = (lastDisconnect?.error instanceof Boom.Boom)
           ? lastDisconnect.error.output?.statusCode
           : undefined;
 
@@ -176,18 +193,52 @@ async function startSession(number, res = null, retryCount = 0, token = null) {
       }
     });
 
-    // Demande du Pairing Code
-    if (res && !sock.authState.creds.registered) {
-      setTimeout(async () => {
+    // Demande du Pairing Code — basé sur l'événement de connexion plutôt qu'un setTimeout fixe
+    if (res && !sock.authState?.creds?.registered) {
+      // On attend que la connexion soit suffisamment avancée pour demander le pairing code.
+      // On utilise un délai adaptatif : on écoute les mises à jour de connexion.
+      let pairingRequested = false;
+
+      const requestPairing = async () => {
+        if (pairingRequested || session.pairingCodeSent) return;
+        pairingRequested = true;
         try {
           const code = await sock.requestPairingCode(number);
-          if (!res.headersSent) res.json({ code, sessionToken: token });
+          session.pairingCodeSent = true;
+          if (!res.headersSent) {
+            res.json({ code, sessionToken: token });
+          }
         } catch (e) {
           console.error(`[GATE] Erreur génération pairing code pour ${number}:`, e.message);
-          if (!res.headersSent) res.status(500).json({ error: 'Erreur lors de la génération du code.' });
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Erreur lors de la génération du code.' });
+          }
         }
+      };
+
+      // Tenter après un délai initial (le temps que le socket s'ouvre)
+      const pairingTimer = setTimeout(() => {
+        requestPairing();
       }, 3500);
-    } else if (res && sock.authState.creds.registered) {
+
+      // Timeout de sécurité : si après 30s on n'a toujours pas de pairing code, on abandonne
+      const failSafeTimer = setTimeout(() => {
+        if (!pairingRequested && !session.pairingCodeSent) {
+          pairingRequested = true;
+          if (!res.headersSent) {
+            res.status(504).json({ error: 'Délai d\'attente dépassé pour le pairing code.' });
+          }
+        }
+      }, 30000);
+
+      // Nettoyer les timers une fois la réponse envoyée
+      const originalJson = res.json.bind(res);
+      res.json = function (body) {
+        clearTimeout(pairingTimer);
+        clearTimeout(failSafeTimer);
+        return originalJson(body);
+      };
+    } else if (res && sock.authState?.creds?.registered) {
       if (!res.headersSent) res.status(400).json({ error: 'Ce numéro est déjà lié.' });
     }
   } catch (e) {
@@ -198,22 +249,52 @@ async function startSession(number, res = null, retryCount = 0, token = null) {
 }
 
 // Restauration automatique de toutes les sessions existantes sur le disque au démarrage
-const sessionsDir = './sessions';
-if (fs.existsSync(sessionsDir)) {
+// On les démarre de manière séquentielle pour éviter les race conditions
+async function restoreSessions() {
+  const sessionsDir = './sessions';
+  if (!fs.existsSync(sessionsDir)) return;
+
   try {
-    const folders = fs.readdirSync(sessionsDir);
-    for (const folder of folders) {
-      if (/^\d{8,15}$/.test(folder)) {
-        console.log(`[GATE] 🔄 Restauration automatique de la session pour : ${folder}`);
+    const folders = fs.readdirSync(sessionsDir).filter(f => /^\d{8,15}$/.test(f));
+    console.log(`[GATE] 🔄 Restauration automatique de ${folders.length} session(s)...`);
+
+    const results = await Promise.allSettled(
+      folders.map(folder =>
         startSession(folder).catch(err => {
           console.error(`[GATE] Échec restauration ${folder}:`, err.message);
-        });
-      }
-    }
+        })
+      )
+    );
+
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    console.log(`[GATE] Restauration terminée : ${succeeded} réussie(s), ${failed} échouée(s).`);
   } catch (err) {
     console.error("[GATE] Erreur lors de la lecture du répertoire des sessions:", err.message);
   }
 }
+
+// Lancer la restauration au démarrage (on attend qu'elle finisse avant de démarrer le serveur,
+// mais on peut aussi lancer le serveur en parallèle si on veut)
+restoreSessions().catch(err => {
+  console.error("[GATE] Erreur fatale lors de la restauration:", err.message);
+});
+
+// Route GET : Health check pour Railway/Render
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Math.floor(process.uptime()),
+    activeSessions: activeSessions.size,
+    pendingTokens: pairingTokens.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Route GET : Ping simple pour les probes TCP
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
 
 // Route POST : Générer le code — PUBLIQUE (rate limitée), pas de clé maître ici.
 // Chaque appel reçoit un sessionToken unique : lui seul pourra relire cette clé.
@@ -237,6 +318,8 @@ app.post('/api/pair', rateLimitPair, async (req, res) => {
   const token = crypto.randomBytes(24).toString('hex');
   pairingTokens.set(number, { token, expiresAt: Date.now() + TOKEN_TTL_MS });
 
+  // On lance la session — le res est passé directement à startSession
+  // qui répondra quand le pairing code sera prêt
   startSession(number, res, 0, token);
 });
 
@@ -260,14 +343,30 @@ app.get('/api/status', async (req, res) => {
 
   const session = activeSessions.get(number);
   const sessionPath = path.join(process.cwd(), `sessions/${number}`);
-  const credsPath = path.join(sessionPath, 'creds.json');
 
   let apiKey = null;
   let format = null;
-  let isConnected = session?.status === 'connected';
 
-  // Si le dossier de session existe, on zippe tout le dossier (creds.json + keys/)
-  if (fs.existsSync(sessionPath) && isConnected) {
+  // Vérifier d'abord si la session est réellement connectée
+  // On vérifie le statut stocké ET on regarde si le dossier session existe avec creds.json
+  const hasSessionDir = fs.existsSync(sessionPath);
+  const credsPath = path.join(sessionPath, 'creds.json');
+  const hasCredsFile = hasSessionDir && fs.existsSync(credsPath);
+
+  // On considère la session comme connectée si :
+  // - le statut en mémoire est 'connected', ET
+  // - le dossier de session et creds.json existent sur le disque
+  let isConnected = false;
+
+  if (session?.status === 'connected' && hasCredsFile) {
+    isConnected = true;
+  } else if (session?.status === 'connected' && session.sock?.authState?.creds) {
+    // Cas dégradé : connecté en mémoire mais pas de dossier (rare)
+    isConnected = true;
+  }
+
+  if (isConnected && hasCredsFile) {
+    // Si le dossier de session existe, on zippe tout le dossier (creds.json + keys/)
     try {
       apiKey = await zipSessionToBase64(sessionPath);
       format = 'zip';
@@ -322,6 +421,7 @@ app.delete('/api/session/:number', requireApiKey, (req, res) => {
     try { session.sock.end(undefined); } catch (e) {}
   }
   activeSessions.delete(number);
+  pairingTokens.delete(number); // Nettoyer aussi le token
 
   const sessionPath = `./sessions/${number}`;
   let deleted = false;
@@ -340,6 +440,7 @@ app.delete('/api/sessions', requireApiKey, (req, res) => {
     try { session.sock?.end(undefined); } catch (e) {}
   }
   activeSessions.clear();
+  pairingTokens.clear(); // Nettoyer tous les tokens
 
   const sessionsDir = './sessions';
   let purgedFolders = [];
@@ -368,6 +469,7 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 GATE ouvert sur le port ${PORT}`);
   console.log('[GATE] /api/pair et /api/status sont publiques, protégées par sessionToken (pas la clé maître).');
+  console.log('[GATE] /health et /ping disponibles pour le monitoring.');
   if (!GATE_API_KEY) {
     console.warn('[GATE] ⚠️ Aucune GATE_API_KEY définie — les routes DELETE (/api/session, /api/sessions) sont accessibles sans authentification.');
   }
